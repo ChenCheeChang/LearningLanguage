@@ -1,0 +1,2484 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>屍速語核列車：飢餓突圍 · BABELCORE EXPRESS</title>
+<style>
+  :root {
+    --bg: #070B14;
+    --panel: rgba(13, 21, 38, 0.88);
+    --panel-strong: rgba(10, 16, 30, 0.96);
+    --border: rgba(56, 189, 248, 0.28);
+    --cobalt: #38BDF8;
+    --cobalt-deep: #0284C7;
+    --emerald: #10B981;
+    --amber: #F59E0B;
+    --rose: #F43F5E;
+    --text: #F8FAFC;
+    --muted: #94A3B8;
+  }
+
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100dvh;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Inter", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+    touch-action: manipulation;
+  }
+
+  #gameCanvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100dvh;
+    display: block;
+    z-index: 0;
+  }
+
+  /* Top-mounted minimal audio toggle (always accessible, never overlaps) */
+  .audio-bar {
+    position: fixed;
+    top: max(10px, env(safe-area-inset-top));
+    right: 12px;
+    z-index: 40;
+    display: flex;
+    gap: 8px;
+  }
+
+  .icon-btn {
+    background: rgba(15, 23, 42, 0.84);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 999px;
+    padding: 7px 12px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    transition: transform 0.12s ease, border-color 0.15s ease, background 0.15s ease;
+  }
+
+  .icon-btn:active { transform: scale(0.95); }
+  .icon-btn.muted { opacity: 0.55; border-color: rgba(148,163,184,0.3); }
+
+  /* Minimalist Home Screen */
+  #homeScreen {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: radial-gradient(circle at 50% 35%, rgba(14, 165, 233, 0.15), rgba(7, 11, 20, 0.84) 68%);
+    text-align: center;
+  }
+
+  .brand-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    background: rgba(14, 165, 233, 0.12);
+    color: var(--cobalt);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    margin-bottom: 16px;
+  }
+
+  .hero-title {
+    margin: 0 0 10px;
+    font-size: clamp(32px, 7vw, 54px);
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    line-height: 1.12;
+    background: linear-gradient(135deg, #FFFFFF 20%, #38BDF8 65%, #10B981 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .hero-sub {
+    margin: 0 0 34px;
+    font-size: clamp(14px, 3.2vw, 17px);
+    color: var(--muted);
+    max-width: 430px;
+    line-height: 1.55;
+  }
+
+  .home-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    width: min(290px, 84vw);
+  }
+
+  .btn-primary {
+    border: none;
+    border-radius: 16px;
+    padding: 16px 24px;
+    font-size: 18px;
+    font-weight: 900;
+    color: #04101D;
+    background: linear-gradient(135deg, #38BDF8, #10B981);
+    box-shadow: 0 10px 30px rgba(56, 189, 248, 0.35);
+    cursor: pointer;
+    transition: transform 0.12s ease, box-shadow 0.15s ease;
+  }
+
+  .btn-primary:hover { box-shadow: 0 12px 36px rgba(16, 185, 129, 0.45); }
+  .btn-primary:active { transform: scale(0.97); }
+
+  .btn-secondary {
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 14px 24px;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+    background: rgba(15, 23, 42, 0.78);
+    backdrop-filter: blur(8px);
+    cursor: pointer;
+    transition: transform 0.12s ease, border-color 0.15s ease;
+  }
+
+  .btn-secondary:hover { border-color: var(--cobalt); }
+  .btn-secondary:active { transform: scale(0.97); }
+
+  /* Active Gameplay UI — Single Vertical Stack, Zero Overlap */
+  #hudLayer {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    display: none;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: max(10px, env(safe-area-inset-top)) 14px max(12px, env(safe-area-inset-bottom));
+    pointer-events: none;
+  }
+
+  #hudLayer.active { display: flex; }
+
+  /* Single Vertical Stack Top HUD */
+  .top-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: min(680px, 100%);
+    margin: 0 auto;
+    padding-right: 96px;
+    pointer-events: auto;
+  }
+
+  .hud-row-1 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 7px 12px;
+    backdrop-filter: blur(10px);
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .stage-pill {
+    color: var(--cobalt);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .stat-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    white-space: nowrap;
+  }
+
+  .hp-hearts { color: var(--rose); letter-spacing: 2px; font-size: 14px; }
+  .score-val { color: #FDE047; font-variant-numeric: tabular-nums; }
+  .combo-badge {
+    color: #04101D;
+    background: var(--emerald);
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 900;
+    display: none;
+  }
+  .combo-badge.show { display: inline-block; }
+
+  .hud-row-2 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .timer-track {
+    flex: 1;
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.2);
+    overflow: hidden;
+  }
+
+  .timer-fill {
+    height: 100%;
+    width: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #10B981, #38BDF8);
+    transition: width 0.08s linear;
+  }
+
+  .timer-fill.warn { background: linear-gradient(90deg, #F59E0B, #F43F5E); }
+
+  .iefp-pill {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--emerald);
+    background: rgba(16, 185, 129, 0.14);
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    border-radius: 999px;
+    padding: 2px 9px;
+    white-space: nowrap;
+  }
+
+  /* Center Micro-Drama Prompt Card */
+  .mission-zone {
+    width: min(680px, 100%);
+    margin: auto auto 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: auto;
+  }
+
+  .drama-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 12px 16px;
+    backdrop-filter: blur(12px);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .drama-panel.vaccine {
+    border-color: rgba(245, 158, 11, 0.78);
+    box-shadow: 0 0 24px rgba(245, 158, 11, 0.22);
+  }
+
+  .drama-panel.movie {
+    border-color: rgba(167, 139, 250, 0.85);
+    box-shadow: 0 0 24px rgba(167, 139, 250, 0.26);
+  }
+
+  .drama-panel.overdrive {
+    border-color: rgba(16, 185, 129, 0.85);
+    box-shadow: 0 0 26px rgba(16, 185, 129, 0.28);
+  }
+
+  .scene-actor {
+    width: 64px;
+    height: 64px;
+    flex-shrink: 0;
+    border-radius: 16px;
+    background: radial-gradient(circle at 35% 30%, rgba(56,189,248,0.28), rgba(15,23,42,0.92));
+    border: 1px solid rgba(56,189,248,0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    animation: scenePulse 2s ease-in-out infinite;
+  }
+
+  @keyframes scenePulse {
+    0%, 100% { transform: scale(1) rotate(0deg); }
+    50% { transform: scale(1.06) rotate(-3deg); }
+  }
+
+  .scene-body {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .scene-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+
+  .scene-tag {
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--cobalt);
+    letter-spacing: 0.04em;
+  }
+
+  .scene-tag.vaccine { color: var(--amber); }
+  .scene-tag.movie { color: #C4B5FD; }
+
+  .replay-btn {
+    border: 1px solid rgba(56, 189, 248, 0.45);
+    background: rgba(56, 189, 248, 0.14);
+    color: var(--cobalt);
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .replay-btn:active { transform: scale(0.95); }
+
+  .intent-text {
+    font-size: clamp(16px, 3.8vw, 20px);
+    font-weight: 900;
+    color: var(--text);
+    line-height: 1.3;
+    margin-bottom: 4px;
+  }
+
+  .incoming-cue {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+
+  .incoming-cue strong {
+    color: #FDE047;
+    font-weight: 800;
+  }
+
+  /* Conversational Judo 3-Skill Bar */
+  .judo-bar {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  .judo-btn {
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    border-radius: 12px;
+    padding: 7px 6px;
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    transition: transform 0.1s ease, border-color 0.15s ease, opacity 0.15s ease;
+  }
+
+  .judo-btn:hover:not(:disabled) { border-color: var(--emerald); }
+  .judo-btn:active:not(:disabled) { transform: scale(0.96); }
+  .judo-btn:disabled { opacity: 0.36; cursor: not-allowed; }
+  .judo-cnt {
+    background: rgba(56, 189, 248, 0.22);
+    color: var(--cobalt);
+    border-radius: 999px;
+    padding: 1px 6px;
+    font-size: 11px;
+  }
+
+  /* 4 Randomized Answer Options */
+  .options-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 9px;
+  }
+
+  @media (max-width: 520px) {
+    .options-grid { grid-template-columns: 1fr; gap: 8px; }
+  }
+
+  .opt-btn {
+    background: rgba(15, 23, 42, 0.92);
+    border: 1.5px solid rgba(148, 163, 184, 0.26);
+    border-radius: 14px;
+    padding: 11px 14px;
+    text-align: left;
+    color: var(--text);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    transition: transform 0.1s ease, border-color 0.15s ease, background 0.15s ease, opacity 0.2s ease;
+  }
+
+  .opt-btn:hover:not(:disabled) {
+    border-color: var(--cobalt);
+    background: rgba(30, 41, 59, 0.95);
+  }
+
+  .opt-btn:active:not(:disabled) { transform: scale(0.98); }
+
+  .opt-btn.eliminated {
+    opacity: 0.22;
+    pointer-events: none;
+    text-decoration: line-through;
+  }
+
+  .opt-btn.correct {
+    border-color: var(--emerald);
+    background: rgba(16, 185, 129, 0.24);
+  }
+
+  .opt-btn.wrong {
+    border-color: var(--rose);
+    background: rgba(244, 63, 94, 0.24);
+  }
+
+  .opt-native {
+    font-size: clamp(15px, 3.6vw, 17px);
+    font-weight: 900;
+    color: #FFFFFF;
+    line-height: 1.28;
+  }
+
+  .opt-phonetic {
+    font-size: 12.5px;
+    color: var(--cobalt);
+    font-weight: 600;
+  }
+
+  /* Toast feedback */
+  #toastBanner {
+    position: fixed;
+    top: 86px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-10px);
+    z-index: 35;
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 800;
+    background: rgba(15, 23, 42, 0.94);
+    border: 1px solid var(--cobalt);
+    color: var(--text);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    white-space: nowrap;
+    max-width: 92vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #toastBanner.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* Modals */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(4, 8, 18, 0.82);
+    backdrop-filter: blur(8px);
+  }
+
+  .modal-backdrop.show { display: flex; }
+
+  .modal-card {
+    width: min(460px, 100%);
+    max-height: 86dvh;
+    overflow-y: auto;
+    background: var(--panel-strong);
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    padding: 24px 22px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
+  }
+
+  .modal-title {
+    margin: 0 0 10px;
+    font-size: 24px;
+    font-weight: 900;
+    color: #FFFFFF;
+  }
+
+  .modal-desc {
+    margin: 0 0 16px;
+    font-size: 14.5px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .rule-list {
+    margin: 0 0 20px;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .rule-list li {
+    background: rgba(30, 41, 59, 0.55);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 12px;
+    padding: 10px 12px;
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: #E2E8F0;
+  }
+
+  .rule-list strong { color: var(--cobalt); }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+
+  .stat-box {
+    background: rgba(30, 41, 59, 0.6);
+    border: 1px solid rgba(56, 189, 248, 0.22);
+    border-radius: 12px;
+    padding: 10px 8px;
+    text-align: center;
+  }
+
+  .stat-box .k { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .stat-box .v { font-size: 18px; font-weight: 900; color: #FFFFFF; }
+
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+  }
+
+  .modal-actions button { flex: 1; }
+</style>
+</head>
+<body>
+
+<canvas id="gameCanvas"></canvas>
+
+<!-- Top-right Audio Control -->
+<div class="audio-bar">
+  <button id="bgmToggle" class="icon-btn" type="button" aria-label="切換背景音樂與音效">🔊 音效開</button>
+</div>
+
+<!-- Toast Feedback -->
+<div id="toastBanner" role="status" aria-live="polite"></div>
+
+<!-- Minimalist Home Screen -->
+<section id="homeScreen">
+  <div class="brand-badge">HUNGER ARENA × TRAIN TO BUSAN · BABELCORE</div>
+  <h1 class="hero-title">屍速語核列車</h1>
+  <p class="hero-sub">
+    24 名倖存者受困 10 節失控跨國特快車！從第 10 節末班車一路殺進第 1 節駕駛室，在感染者撞破車廂門前喊出 9 國隨機語系口語與電影名場面，成為唯一生還者！
+  </p>
+  <div class="home-actions">
+    <button id="startBtn" class="btn-primary" type="button">衝進車廂（開始突圍）</button>
+    <button id="rulesBtn" class="btn-secondary" type="button">生存守則</button>
+  </div>
+</section>
+
+<!-- Active HUD Layer -->
+<main id="hudLayer">
+  <div class="top-stack">
+    <div class="hud-row-1">
+      <span id="stageLabel" class="stage-pill">關卡 1/10 · 隨機語系任務</span>
+      <div class="stat-group">
+        <span id="survivorBadge" style="color:#F59E0B;font-size:12px;">💀 存活 24/24</span>
+        <span id="comboBadge" class="combo-badge">x2</span>
+        <span id="hpHearts" class="hp-hearts">♥♥♥</span>
+        <span id="scoreVal" class="score-val">0</span>
+      </div>
+    </div>
+    <div class="hud-row-2">
+      <div class="timer-track"><div id="timerFill" class="timer-fill"></div></div>
+      <span id="iefpPill" class="iefp-pill">IEFP 同步中</span>
+    </div>
+  </div>
+
+  <div class="mission-zone">
+    <div id="dramaPanel" class="drama-panel">
+      <div id="sceneActor" class="scene-actor">🍜</div>
+      <div class="scene-body">
+        <div class="scene-meta">
+          <span id="sceneTag" class="scene-tag">零符號微戲劇 · L1 100 WPM</span>
+          <button id="replayAudioBtn" class="replay-btn" type="button">🔊 重聽發音</button>
+        </div>
+        <div id="intentText" class="intent-text">情境載入中…</div>
+        <div id="incomingCue" class="incoming-cue"></div>
+      </div>
+    </div>
+
+    <div class="judo-bar">
+      <button id="skillSlow" class="judo-btn" type="button">🚪 緊急門栓 <span id="cntSlow" class="judo-cnt">2</span></button>
+      <button id="skillSplit" class="judo-btn" type="button">🔦 隧道信號彈 <span id="cntSplit" class="judo-cnt">2</span></button>
+      <button id="skillEcho" class="judo-btn" type="button">🛡️ 鐵板防線 <span id="cntEcho" class="judo-cnt">2</span></button>
+    </div>
+
+    <div id="optionsGrid" class="options-grid"></div>
+  </div>
+</main>
+
+<!-- Rules Modal -->
+<div id="rulesModal" class="modal-backdrop">
+  <div class="modal-card">
+    <h2 class="modal-title">屍速語核列車 · 生存守則</h2>
+    <ul class="rule-list">
+      <li><strong>1. 屍速車廂突圍（10→1 節）：</strong>從第 10 節車廂一路向前衝刺至第 1 節駕駛室！在喪屍群撞破隔門前，聽原聲並點擊正確的目標語口語語塊或「🎬 電影名場面」台詞鎖門反擊（語系、題目、選項全隨機不重複，支援鍵盤 1–4）。</li>
+      <li><strong>2. 飢餓遊戲 24 人淘汰＆贊助空投：</strong>全車共 24 名倖存者，每突破車廂砲聲響起、對手陸續淘汰。連續答對 3 題觸發<strong>「銀色贊助商空投箱」</strong>，空投急救補血或戰術補給並啟動雙倍分數！</li>
+      <li><strong>3. 列車生存三道具（Q/W/E）：</strong>面對隧道斷電與高速喪屍，善用<strong>🚪 緊急門栓</strong>（喪屍減速 50%＋慢速重播）、<strong>🔦 隧道信號彈</strong>（消除兩錯鎖定二選一）與<strong>🛡️ 鐵板防線</strong>（擋下一次破門＋顯示關鍵詞）。</li>
+      <li><strong>4. IEFP 變異感染者追蹤：</strong>答錯遭破門時，該句感染者會記住你的破綻，於後續或跨車廂化作「防爆疫苗波」再次突襲（絕不連續重複），擊退即可獲得額外生存加分！</li>
+    </ul>
+    <div class="modal-actions">
+      <button id="closeRulesBtn" class="btn-primary" type="button">鎖緊車門，開始突圍</button>
+    </div>
+  </div>
+</div>
+
+<!-- Stage Clear / Victory / Game Over Modal -->
+<div id="resultModal" class="modal-backdrop">
+  <div class="modal-card">
+    <h2 id="resultTitle" class="modal-title">關卡突破！</h2>
+    <p id="resultDesc" class="modal-desc"></p>
+    <div class="stat-grid">
+      <div class="stat-box"><div class="k">總得分</div><div id="resScore" class="v">0</div></div>
+      <div class="stat-box"><div class="k">最高連擊</div><div id="resCombo" class="v">0</div></div>
+      <div class="stat-box"><div class="k">生存命中率</div><div id="resAcc" class="v">100%</div></div>
+    </div>
+    <div class="modal-actions">
+      <button id="resultActionBtn" class="btn-primary" type="button">進入下一關</button>
+      <button id="resultHomeBtn" class="btn-secondary" type="button">返回主畫面</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================================
+   BABELCORE v2.1 ENGINE — Hardened via 10,000-Run Automated Stress Testing
+   ============================================================================ */
+(function () {
+  "use strict";
+
+  const STAGES = [
+    {
+      id: 1, name: "東京拉麵屋", langName: "日語・丁寧體", langCode: "ja-JP",
+      speedTier: "L1 · 100 WPM", timeLimit: 13.5, glitchRate: 0, accent: "#38BDF8",
+      tip: "鎖定單一丁寧體（です／ます），專注句尾 1.5 秒尾音！",
+      questions: [
+        { id: "jp1", icon: "💧", intent: "想跟店員禮貌地要一杯冰水", incoming: "いらっしゃいませ！ご注文は？", keyword: "水 (Mizu)",
+          options: [
+            { text: "お水をください", phonetic: "O-mizu o kudasai", correct: true },
+            { text: "お会計お願いします", phonetic: "O-kaikei onegaishimasu", correct: false },
+            { text: "駅はどこですか", phonetic: "Eki wa doko desu ka", correct: false },
+            { text: "辛くしないでください", phonetic: "Karaku shinaide kudasai", correct: false }
+          ]
+        },
+        { id: "jp2", icon: "💳", intent: "吃完拉麵準備結帳買單", incoming: "ごゆっくりどうぞ！", keyword: "結帳 (O-kaikei)",
+          options: [
+            { text: "お会計お願いします", phonetic: "O-kaikei onegaishimasu", correct: true },
+            { text: "これを一つください", phonetic: "Kore o hitotsu kudasai", correct: false },
+            { text: "トイレはどこですか", phonetic: "Toire wa doko desu ka", correct: false },
+            { text: "もう一度ゆっくりお願いします", phonetic: "Mou ichido yukkuri onegaishimasu", correct: false }
+          ]
+        },
+        { id: "jp3", icon: "🌶️", intent: "擔心太辣，請老闆不要加辣", incoming: "辛さはどうしますか？", keyword: "不要辣 (Karaku shinaide)",
+          options: [
+            { text: "辛くしないでください", phonetic: "Karaku shinaide kudasai", correct: true },
+            { text: "お水をください", phonetic: "O-mizu o kudasai", correct: false },
+            { text: "袋はいりません", phonetic: "Fukuro wa irimasen", correct: false },
+            { text: "いくらですか", phonetic: "Ikura desu ka", correct: false }
+          ]
+        },
+        { id: "jp4", icon: "🛍️", intent: "店員問要不要塑膠袋，你回答不需要", incoming: "レジ袋はご利用ですか？", keyword: "不需要 (Irimasen)",
+          options: [
+            { text: "袋はいりません", phonetic: "Fukuro wa irimasen", correct: true },
+            { text: "これを一つください", phonetic: "Kore o hitotsu kudasai", correct: false },
+            { text: "助けてください", phonetic: "Tasukete kudasai", correct: false },
+            { text: "お会計お願いします", phonetic: "O-kaikei onegaishimasu", correct: false }
+          ]
+        },
+        { id: "jp5", icon: "🐢", intent: "對話柔道煞車招：請對方再慢一點說一次", incoming: "ポイントカードはお持ちでしょうか？", keyword: "慢一點 (Yukkuri)",
+          options: [
+            { text: "もう一度ゆっくりお願いします", phonetic: "Mou ichido yukkuri onegaishimasu", correct: true },
+            { text: "お水をください", phonetic: "O-mizu o kudasai", correct: false },
+            { text: "辛くしないでください", phonetic: "Karaku shinaide kudasai", correct: false },
+            { text: "袋はいりません", phonetic: "Fukuro wa irimasen", correct: false }
+          ]
+        },
+        { id: "jp6", icon: "🏀", isMovie: true, movieTitle: "灌籃高手", intent: "【電影名場面】絕境中熱血喊出「現在放棄的話，比賽就結束了」", incoming: "もうダメだ、勝てないよ…", keyword: "比賽結束 (Shiai shuuryou)",
+          options: [
+            { text: "諦めたらそこで試合終了ですよ", phonetic: "Akirametara soko de shiai shuuryou desu yo", correct: true },
+            { text: "真実はいつもひとつ！", phonetic: "Shinjitsu wa itsumo hitotsu!", correct: false },
+            { text: "お会計お願いします", phonetic: "O-kaikei onegaishimasu", correct: false },
+            { text: "もう一度ゆっくりお願いします", phonetic: "Mou ichido yukkuri onegaishimasu", correct: false }
+          ]
+        },
+        { id: "jp7", icon: "🔍", isMovie: true, movieTitle: "名偵探柯南", intent: "【電影名場面】識破真相時帥氣一指「真相永遠只有一個！」", incoming: "犯人は一体誰なんだ？", keyword: "真相只有一個 (Shinjitsu wa itsumo hitotsu)",
+          options: [
+            { text: "真実はいつもひとつ！", phonetic: "Shinjitsu wa itsumo hitotsu!", correct: true },
+            { text: "諦めたらそこで試合終了ですよ", phonetic: "Akirametara soko de shiai shuuryou desu yo", correct: false },
+            { text: "辛くしないでください", phonetic: "Karaku shinaide kudasai", correct: false },
+            { text: "袋はいりません", phonetic: "Fukuro wa irimasen", correct: false }
+          ]
+        }
+      ]
+    },
+    {
+      id: 2, name: "曼谷夜市", langName: "泰語・5聲調旋律", langCode: "th-TH",
+      speedTier: "L1 · 110 WPM", timeLimit: 13.0, glitchRate: 0, accent: "#F59E0B",
+      tip: "把聲調綁定成旋律，並用句尾 khrap/kha 抓句子結束點！",
+      questions: [
+        { id: "th1", icon: "💰", intent: "指著芒果糯米飯問老闆多少錢", incoming: "รับอะไรดีครับ？", keyword: "多少錢 (Thao-rai)",
+          options: [
+            { text: "อันนี้เท่าไหร่ครับ", phonetic: "An-nee thao-rai khrap", correct: true },
+            { text: "ไม่เผ็ดนะครับ", phonetic: "Mai phet na khrap", correct: false },
+            { text: "ห้องน้ำอยู่ไหนครับ", phonetic: "Hong-nam yoo nai khrap", correct: false },
+            { text: "ช่วยด้วยครับ", phonetic: "Chuay duay khrap", correct: false }
+          ]
+        },
+        { id: "th2", icon: "🔥", intent: "點泰式涼拌木瓜絲，強調完全不要辣", incoming: "เอาเผ็ดไหมครับ？", keyword: "不辣 (Mai phet)",
+          options: [
+            { text: "ไม่เผ็ดนะครับ", phonetic: "Mai phet na khrap", correct: true },
+            { text: "ลดหน่อยได้ไหมครับ", phonetic: "Lot noi dai mai khrap", correct: false },
+            { text: "อันนี้เท่าไหร่ครับ", phonetic: "An-nee thao-rai khrap", correct: false },
+            { text: "พูดช้าๆ หน่อยครับ", phonetic: "Phoot chaa-chaa noi khrap", correct: false }
+          ]
+        },
+        { id: "th3", icon: "🏷️", intent: "覺得開價太高，禮貌詢問能不能便宜一點", incoming: "สองร้อยบาทครับ", keyword: "便宜一點 (Lot noi)",
+          options: [
+            { text: "ลดหน่อยได้ไหมครับ", phonetic: "Lot noi dai mai khrap", correct: true },
+            { text: "ไม่เผ็ดนะครับ", phonetic: "Mai phet na khrap", correct: false },
+            { text: "ห้องน้ำอยู่ไหนครับ", phonetic: "Hong-nam yoo nai khrap", correct: false },
+            { text: "เอาน้ำแข็งครับ", phonetic: "Ao nam-khaeng khrap", correct: false }
+          ]
+        },
+        { id: "th4", icon: "🚻", intent: "急著在夜市裡找洗手間在哪裡", incoming: "มีอะไรให้ช่วยไหม？", keyword: "洗手間 (Hong-nam)",
+          options: [
+            { text: "ห้องน้ำอยู่ไหนครับ", phonetic: "Hong-nam yoo nai khrap", correct: true },
+            { text: "อันนี้เท่าไหร่ครับ", phonetic: "An-nee thao-rai khrap", correct: false },
+            { text: "ลดหน่อยได้ไหมครับ", phonetic: "Lot noi dai mai khrap", correct: false },
+            { text: "พูดช้าๆ หน่อยครับ", phonetic: "Phoot chaa-chaa noi khrap", correct: false }
+          ]
+        },
+        { id: "th5", icon: "🐢", intent: "對話柔道煞車招：請攤販說慢一點", incoming: "เดี๋ยวรอสักครู่เดินตรงไปเลี้ยวซ้ายนะครับ", keyword: "慢一點 (Chaa-chaa)",
+          options: [
+            { text: "พูดช้าๆ หน่อยครับ", phonetic: "Phoot chaa-chaa noi khrap", correct: true },
+            { text: "ไม่เผ็ดนะครับ", phonetic: "Mai phet na khrap", correct: false },
+            { text: "อันนี้เท่าไหร่ครับ", phonetic: "An-nee thao-rai khrap", correct: false },
+            { text: "ลดหน่อยได้ไหมครับ", phonetic: "Lot noi dai mai khrap", correct: false }
+          ]
+        },
+        { id: "th6", icon: "🥊", isMovie: true, movieTitle: "拳霸熱血場面", intent: "【電影名場面】拳館決戰前幫隊友熱血打氣「加油，撐住啊！」", incoming: "เหนื่อยมากเลยครับ…", keyword: "加油 (Soo-soo)",
+          options: [
+            { text: "สู้ๆ นะครับ!", phonetic: "Soo-soo na khrap!", correct: true },
+            { text: "เร็วๆ หน่อย ไม่มีเวลาแล้ว!", phonetic: "Reo-reo noi, mai mee we-la laeo!", correct: false },
+            { text: "อันนี้เท่าไหร่ครับ", phonetic: "An-nee thao-rai khrap", correct: false },
+            { text: "ไม่เผ็ดนะครับ", phonetic: "Mai phet na khrap", correct: false }
+          ]
+        },
+        { id: "th7", icon: "⏱️", isMovie: true, movieTitle: "模犯生考場", intent: "【電影名場面】考場倒數時刻壓低聲音催促「快點，沒時間了！」", incoming: "เหลืออีกแค่สองนาที!", keyword: "沒時間了 (Mai mee wela)",
+          options: [
+            { text: "เร็วๆ หน่อย ไม่มีเวลาแล้ว!", phonetic: "Reo-reo noi, mai mee we-la laeo!", correct: true },
+            { text: "สู้ๆ นะครับ!", phonetic: "Soo-soo na khrap!", correct: false },
+            { text: "ห้องน้ำอยู่ไหนครับ", phonetic: "Hong-nam yoo nai khrap", correct: false },
+            { text: "พูดช้าๆ หน่อยครับ", phonetic: "Phoot chaa-chaa noi khrap", correct: false }
+          ]
+        }
+      ]
+    },
+    {
+      id: 3, name: "馬德里車站", langName: "西語・封閉式問路", langCode: "es-ES",
+      speedTier: "L2 · 130 WPM", timeLimit: 12.0, glitchRate: 0.1, accent: "#10B981",
+      tip: "用封閉式二選一提問，把對方的長串回答鎖死在左轉或右轉！",
+      questions: [
+        { id: "es1", icon: "🧭", intent: "對話柔道二選一：車站是直走還是右轉？", incoming: "¿A dónde vas?", keyword: "直走或右轉 (Recto / Derecha)",
+          options: [
+            { text: "¿La estación, recto o a la derecha?", phonetic: "La es-ta-syon, rek-to o a la de-re-cha?", correct: true },
+            { text: "¿Cuánto cuesta esto?", phonetic: "Kwan-to kwes-ta es-to?", correct: false },
+            { text: "La cuenta, por favor", phonetic: "La kwen-ta, por fa-vor", correct: false },
+            { text: "No entiendo, más despacio", phonetic: "No en-tyen-do, mas des-pa-syo", correct: false }
+          ]
+        },
+        { id: "es2", icon: "🎫", intent: "買一張去巴塞隆納的車票", incoming: "¿Qué desea comprar?", keyword: "一張票 (Un billete)",
+          options: [
+            { text: "Quiero un billete, por favor", phonetic: "Kye-ro oon bee-ye-te, por fa-vor", correct: true },
+            { text: "¿Dónde está el baño?", phonetic: "Don-de es-ta el ba-nyo?", correct: false },
+            { text: "Necesito un médico", phonetic: "Ne-se-see-to oon me-dee-ko", correct: false },
+            { text: "La cuenta, por favor", phonetic: "La kwen-ta, por fa-vor", correct: false }
+          ]
+        },
+        { id: "es3", icon: "💵", intent: "詢問櫃檯這個三明治多少錢", incoming: "Aquí tiene su pedido.", keyword: "多少錢 (Cuánto cuesta)",
+          options: [
+            { text: "¿Cuánto cuesta esto?", phonetic: "Kwan-to kwes-ta es-to?", correct: true },
+            { text: "Quiero un billete, por favor", phonetic: "Kye-ro oon bee-ye-te, por fa-vor", correct: false },
+            { text: "Necesito un médico", phonetic: "Ne-se-see-to oon me-dee-ko", correct: false },
+            { text: "¿La estación, recto o a la derecha?", phonetic: "La es-ta-syon, rek-to o a la de-re-cha?", correct: false }
+          ]
+        },
+        { id: "es4", icon: "🏥", intent: "同行旅伴突然發燒，緊急說我需要醫生", incoming: "¿Todo bien señor?", keyword: "醫生 (Médico)",
+          options: [
+            { text: "Necesito un médico, por favor", phonetic: "Ne-se-see-to oon me-dee-ko, por fa-vor", correct: true },
+            { text: "¿Cuánto cuesta esto?", phonetic: "Kwan-to kwes-ta es-to?", correct: false },
+            { text: "La cuenta, por favor", phonetic: "La kwen-ta, por fa-vor", correct: false },
+            { text: "Quiero un billete, por favor", phonetic: "Kye-ro oon bee-ye-te, por fa-vor", correct: false }
+          ]
+        },
+        { id: "es5", icon: "🛑", intent: "對方語速太快，立刻喊停說我聽不懂請慢點", incoming: "Tienes que bajar en la tercera parada y cambiar...", keyword: "慢一點 (Más despacio)",
+          options: [
+            { text: "No entiendo, más despacio", phonetic: "No en-tyen-do, mas des-pa-syo", correct: true },
+            { text: "Quiero un billete, por favor", phonetic: "Kye-ro oon bee-ye-te, por fa-vor", correct: false },
+            { text: "¿Cuánto cuesta esto?", phonetic: "Kwan-to kwes-ta es-to?", correct: false },
+            { text: "Necesito un médico, por favor", phonetic: "Ne-se-see-to oon me-dee-ko, por fa-vor", correct: false }
+          ]
+        },
+        { id: "es6", icon: "🕶️", isMovie: true, movieTitle: "魔鬼終結者 2", intent: "【電影名場面】鎖定目標帥氣道別「再見了，寶貝！」", incoming: "¡No te muevas!", keyword: "再見寶貝 (Hasta la vista)",
+          options: [
+            { text: "Hasta la vista, baby", phonetic: "As-ta la vees-ta, bey-bee", correct: true },
+            { text: "¡Empezamos!", phonetic: "Em-pe-sa-mos!", correct: false },
+            { text: "¿Cuánto cuesta esto?", phonetic: "Kwan-to kwes-ta es-to?", correct: false },
+            { text: "No entiendo, más despacio", phonetic: "No en-tyen-do, mas des-pa-syo", correct: false }
+          ]
+        },
+        { id: "es7", icon: "🎭", isMovie: true, movieTitle: "紙房子行動", intent: "【電影名場面】戴上面具宣布計畫啟動「我們開始吧！」", incoming: "¿Todo el equipo está listo?", keyword: "開始行動 (Empezamos)",
+          options: [
+            { text: "¡Empezamos!", phonetic: "Em-pe-sa-mos!", correct: true },
+            { text: "Hasta la vista, baby", phonetic: "As-ta la vees-ta, bey-bee", correct: false },
+            { text: "Quiero un billete, por favor", phonetic: "Kye-ro oon bee-ye-te, por fa-vor", correct: false },
+            { text: "Necesito un médico, por favor", phonetic: "Ne-se-see-to oon me-dee-ko, por fa-vor", correct: false }
+          ]
+        }
+      ]
+    },
+    {
+      id: 4, name: "巴黎咖啡館", langName: "法語・連音與微調", langCode: "fr-FR",
+      speedTier: "L2 · 135 WPM", timeLimit: 11.5, glitchRate: 0.15, accent: "#818CF8",
+      tip: "別管法語陰陽性變位，直接整塊背下「我要…（Je voudrais…）」！",
+      questions: [
+        { id: "fr1", icon: "🧊", intent: "想點一杯冰咖啡（不要熱的）", incoming: "Bonjour ! Qu'est-ce que vous prenez ?", keyword: "冰咖啡 (Café glacé)",
+          options: [
+            { text: "Je voudrais un café glacé", phonetic: "Zhe voo-dre un ka-fe gla-se", correct: true },
+            { text: "L'addition, s'il vous plaît", phonetic: "La-dee-syon, seel voo ple", correct: false },
+            { text: "Où sont les toilettes ?", phonetic: "Oo son le twa-let?", correct: false },
+            { text: "C'est combien ?", phonetic: "Se kom-byen?", correct: false }
+          ]
+        },
+        { id: "fr2", icon: "🧾", intent: "喝完咖啡向服務生示意結帳", incoming: "Ça a été ?", keyword: "帳單 (L'addition)",
+          options: [
+            { text: "L'addition, s'il vous plaît", phonetic: "La-dee-syon, seel voo ple", correct: true },
+            { text: "Je voudrais un café glacé", phonetic: "Zhe voo-dre un ka-fe gla-se", correct: false },
+            { text: "Plus lentement, s'il vous plaît", phonetic: "Ploo lont-mon, seel voo ple", correct: false },
+            { text: "Où sont les toilettes ?", phonetic: "Oo son le twa-let?", correct: false }
+          ]
+        },
+        { id: "fr3", icon: "💳", intent: "封閉式提問：可以刷卡還是只收現金？", incoming: "Ça fait douze euros.", keyword: "刷卡或現金 (Carte / Espèces)",
+          options: [
+            { text: "Par carte ou en espèces ?", phonetic: "Par kart oo on es-pes?", correct: true },
+            { text: "Je voudrais un café glacé", phonetic: "Zhe voo-dre un ka-fe gla-se", correct: false },
+            { text: "Où sont les toilettes ?", phonetic: "Oo son le twa-let?", correct: false },
+            { text: "L'addition, s'il vous plaît", phonetic: "La-dee-syon, seel voo ple", correct: false }
+          ]
+        },
+        { id: "fr4", icon: "🚻", intent: "禮貌詢問洗手間在樓上還是樓下", incoming: "Oui, monsieur ?", keyword: "洗手間 (Toilettes)",
+          options: [
+            { text: "Où sont les toilettes ?", phonetic: "Oo son le twa-let?", correct: true },
+            { text: "Par carte ou en espèces ?", phonetic: "Par kart oo on es-pes?", correct: false },
+            { text: "C'est combien ?", phonetic: "Se kom-byen?", correct: false },
+            { text: "Plus lentement, s'il vous plaît", phonetic: "Ploo lont-mon, seel voo ple", correct: false }
+          ]
+        },
+        { id: "fr5", icon: "🐢", intent: "服務生連音太快，立刻使出煞車招請慢一點", incoming: "Vous pouvez payer au comptoir là-bas tout de suite.", keyword: "慢一點 (Plus lentement)",
+          options: [
+            { text: "Plus lentement, s'il vous plaît", phonetic: "Ploo lont-mon, seel voo ple", correct: true },
+            { text: "L'addition, s'il vous plaît", phonetic: "La-dee-syon, seel voo ple", correct: false },
+            { text: "Je voudrais un café glacé", phonetic: "Zhe voo-dre un ka-fe gla-se", correct: false },
+            { text: "Par carte ou en espèces ?", phonetic: "Par kart oo on es-pes?", correct: false }
+          ]
+        },
+        { id: "fr6", icon: "🎞️", isMovie: true, movieTitle: "法式經典電影", intent: "【電影名場面】計畫出小插曲時優雅聳肩一笑「這就是人生！」", incoming: "Oh non, le train est parti !", keyword: "這就是人生 (C'est la vie)",
+          options: [
+            { text: "C'est la vie !", phonetic: "Se la vee!", correct: true },
+            { text: "Enchanté !", phonetic: "On-shon-te!", correct: false },
+            { text: "L'addition, s'il vous plaît", phonetic: "La-dee-syon, seel voo ple", correct: false },
+            { text: "Où sont les toilettes ?", phonetic: "Oo son le twa-let?", correct: false }
+          ]
+        },
+        { id: "fr7", icon: "🎩", isMovie: true, movieTitle: "怪盜羅蘋名場面", intent: "【電影名場面】舞會登場優雅伸手致意「幸會！（很高興認識你）」", incoming: "Bonsoir, qui êtes-vous ?", keyword: "幸會 (Enchanté)",
+          options: [
+            { text: "Enchanté !", phonetic: "On-shon-te!", correct: true },
+            { text: "C'est la vie !", phonetic: "Se la vee!", correct: false },
+            { text: "Plus lentement, s'il vous plaît", phonetic: "Ploo lont-mon, seel voo ple", correct: false },
+            { text: "Je voudrais un café glacé", phonetic: "Zhe voo-dre un ka-fe gla-se", correct: false }
+          ]
+        }
+      ]
+    },
+    {
+      id: 5, name: "首爾藥妝店", langName: "韓語・해요安全體", langCode: "ko-KR",
+      speedTier: "L2 · 140 WPM", timeLimit: 11.0, glitchRate: 0.18, accent: "#EC4899",
+      tip: "統一鎖定萬用禮貌級「해요」體，對店員或長輩都不失禮！",
+      questions: [
+        { id: "ko1", icon: "💊", intent: "感冒頭痛，請藥師給我感冒藥", incoming: "어서 오세요! 뭐 찾으세요?", keyword: "感冒藥 (Gamgi-yak)",
+          options: [
+            { text: "감기약 주세요", phonetic: "Gam-gi-yak ju-se-yo", correct: true },
+            { text: "이거 얼마예요?", phonetic: "I-geo eol-ma-ye-yo?", correct: false },
+            { text: "카드 돼요?", phonetic: "Ka-deu dwae-yo?", correct: false },
+            { text: "천천히 말해 주세요", phonetic: "Cheon-cheon-hi mal-hae ju-se-yo", correct: false }
+          ]
+        },
+        { id: "ko2", icon: "💳", intent: "拿著商品問櫃檯能不能刷信用卡", incoming: "만 오천 원입니다.", keyword: "刷卡 (Kadeu)",
+          options: [
+            { text: "카드 돼요?", phonetic: "Ka-deu dwae-yo?", correct: true },
+            { text: "감기약 주세요", phonetic: "Gam-gi-yak ju-se-yo", correct: false },
+            { text: "봉투 괜찮아요", phonetic: "Bong-tu gwaen-cha-na-yo", correct: false },
+            { text: "화장실 어디예요?", phonetic: "Hwa-jang-sil eo-di-ye-yo?", correct: false }
+          ]
+        },
+        { id: "ko3", icon: "🛍️", intent: "店員問要不要加購袋子，你揮手說不用了", incoming: "봉투 필요하세요?", keyword: "沒關係/不用 (Gwaenchanayo)",
+          options: [
+            { text: "봉투 괜찮아요", phonetic: "Bong-tu gwaen-cha-na-yo", correct: true },
+            { text: "이거 얼마예요?", phonetic: "I-geo eol-ma-ye-yo?", correct: false },
+            { text: "감기약 주세요", phonetic: "Gam-gi-yak ju-se-yo", correct: false },
+            { text: "카드 돼요?", phonetic: "Ka-deu dwae-yo?", correct: false }
+          ]
+        },
+        { id: "ko4", icon: "🏷️", intent: "沒看到標價，拿著面膜問這個多少錢", incoming: "인기 제품이에요!", keyword: "多少錢 (Eolmayeyo)",
+          options: [
+            { text: "이거 얼마예요?", phonetic: "I-geo eol-ma-ye-yo?", correct: true },
+            { text: "봉투 괜찮아요", phonetic: "Bong-tu gwaen-cha-na-yo", correct: false },
+            { text: "천천히 말해 주세요", phonetic: "Cheon-cheon-hi mal-hae ju-se-yo", correct: false },
+            { text: "감기약 주세요", phonetic: "Gam-gi-yak ju-se-yo", correct: false }
+          ]
+        },
+        { id: "ko5", icon: "🐢", intent: "藥師交代服藥方式太快，請對方說慢一點", incoming: "식후 삼십 분에 두 알씩 드셔야 해요.", keyword: "慢慢說 (Cheoncheonhi)",
+          options: [
+            { text: "천천히 말해 주세요", phonetic: "Cheon-cheon-hi mal-hae ju-se-yo", correct: true },
+            { text: "카드 돼요?", phonetic: "Ka-deu dwae-yo?", correct: false },
+            { text: "이거 얼마예요?", phonetic: "I-geo eol-ma-ye-yo?", correct: false },
+            { text: "봉투 괜찮아요", phonetic: "Bong-tu gwaen-cha-na-yo", correct: false }
+          ]
+        },
+        { id: "ko6", icon: "🦑", isMovie: true, movieTitle: "魷魚遊戲", intent: "【電影名場面】巨型娃娃轉身前的經典口令「一二三，木頭人！」", incoming: "첫 번째 게임을 시작합니다!", keyword: "木頭人 (Mugunghwa)",
+          options: [
+            { text: "무궁화 꽃이 피었습니다", phonetic: "Mu-gung-hwa kko-chi pi-eot-seum-ni-da", correct: true },
+            { text: "너는 다 계획이 있구나", phonetic: "Neo-neun da gye-hoe-gi it-gu-na", correct: false },
+            { text: "감기약 주세요", phonetic: "Gam-gi-yak ju-se-yo", correct: false },
+            { text: "천천히 말해 주세요", phonetic: "Cheon-cheon-hi mal-hae ju-se-yo", correct: false }
+          ]
+        },
+        { id: "ko7", icon: "🏆", isMovie: true, movieTitle: "寄生上流", intent: "【電影名場面】佩服隊友神操作，笑著稱讚「你真是計畫通啊！」", incoming: "걱정 마, 다 생각했어.", keyword: "早有計畫 (Gye-hoe-gi it-gu-na)",
+          options: [
+            { text: "너는 다 계획이 있구나", phonetic: "Neo-neun da gye-hoe-gi it-gu-na", correct: true },
+            { text: "무궁화 꽃이 피었습니다", phonetic: "Mu-gung-hwa kko-chi pi-eot-seum-ni-da", correct: false },
+            { text: "카드 돼요?", phonetic: "Ka-deu dwae-yo?", correct: false },
+            { text: "이거 얼마예요?", phonetic: "I-geo eol-ma-ye-yo?", correct: false }
+          ]
+        }
+      ]
+    },
+    {
+      id: 6, name: "莫斯科地鐵", langName: "俄語・預變格打包", langCode: "ru-RU",
+      speedTier: "L3 · 160 WPM（超綱干擾）", timeLimit: 10.5, glitchRate: 0.30, accent: "#F43F5E",
+      tip: "放棄背誦俄語 6 格表！直接把「前置詞＋已變格名詞」當單一語塊發射！",
+      questions: [
+        { id: "ru1", icon: "🚇", intent: "在雪地裡急找地鐵入口在哪裡", incoming: "Что вы ищете? [噪音干擾]", keyword: "地鐵 (Metro)",
+          options: [
+            { text: "Где метро?", phonetic: "Gde me-tro?", correct: true },
+            { text: "Сколько это стоит?", phonetic: "Skol-ko e-to sto-it?", correct: false },
+            { text: "Мне нужна помощь!", phonetic: "Mne nuzh-na po-moshch!", correct: false },
+            { text: "Я не понимаю", phonetic: "Ya ne po-ni-ma-yu", correct: false }
+          ]
+        },
+        { id: "ru2", icon: "🏨", intent: "上計程車直接告訴司機「去飯店（已變格語塊）」", incoming: "Куда едем? [急促語氣]", keyword: "去飯店 (V otel)",
+          options: [
+            { text: "Пожалуйста, в отель", phonetic: "Po-zha-luy-sta, v o-tel", correct: true },
+            { text: "Где метро?", phonetic: "Gde me-tro?", correct: false },
+            { text: "Можно воды?", phonetic: "Mozh-no vo-dy?", correct: false },
+            { text: "Сколько это стоит?", phonetic: "Skol-ko e-to sto-it?", correct: false }
+          ]
+        },
+        { id: "ru3", icon: "🆘", intent: "護照疑似遺失，立刻向站務員求助", incoming: "Что случилось? [超綱詞轟炸]", keyword: "需要幫助 (Pomoshch)",
+          options: [
+            { text: "Мне нужна помощь!", phonetic: "Mne nuzh-na po-moshch!", correct: true },
+            { text: "Пожалуйста, в отель", phonetic: "Po-zha-luy-sta, v o-tel", correct: false },
+            { text: "Где метро?", phonetic: "Gde me-tro?", correct: false },
+            { text: "Сколько это стоит?", phonetic: "Skol-ko e-to sto-it?", correct: false }
+          ]
+        },
+        { id: "ru4", icon: "💵", intent: "買地鐵儲值卡時問售票員多少錢", incoming: "Вам на одну поездку или на день?", keyword: "多少錢 (Skolko stoit)",
+          options: [
+            { text: "Сколько это стоит?", phonetic: "Skol-ko e-to sto-it?", correct: true },
+            { text: "Мне нужна помощь!", phonetic: "Mne nuzh-na po-moshch!", correct: false },
+            { text: "Говорите медленнее", phonetic: "Go-vo-ri-te med-len-ne-ye", correct: false },
+            { text: "Где метро?", phonetic: "Gde me-tro?", correct: false }
+          ]
+        },
+        { id: "ru5", icon: "🐢", intent: "對方連珠炮講一堆俄語，啟動煞車招請慢一點", incoming: "Пройдите через турникет и спуститесь на эскалаторе...", keyword: "慢一點 (Medlenneye)",
+          options: [
+            { text: "Говорите медленнее", phonetic: "Go-vo-ri-te med-len-ne-ye", correct: true },
+            { text: "Пожалуйста, в отель", phonetic: "Po-zha-luy-sta, v o-tel", correct: false },
+            { text: "Мне нужна помощь!", phonetic: "Mne nuzh-na po-moshch!", correct: false },
+            { text: "Сколько это стоит?", phonetic: "Skol-ko e-to sto-it?", correct: false }
+          ]
+        },
+        { id: "ru6", icon: "🚀", isMovie: true, movieTitle: "太空傳奇名場面", intent: "【電影名場面】引擎點火瞬間霸氣大喊「出發吧！（上啊！）」", incoming: "Три, два, один, старт!", keyword: "出發吧 (Poyekhali)",
+          options: [
+            { text: "Поехали!", phonetic: "Po-ye-kha-li!", correct: true },
+            { text: "Понял, без проблем!", phonetic: "Po-nyal, bez prob-lem!", correct: false },
+            { text: "Где метро?", phonetic: "Gde me-tro?", correct: false },
+            { text: "Говорите медленнее", phonetic: "Go-vo-ri-te med-len-ne-ye", correct: false }
+          ]
+        },
+        { id: "ru7", icon: "🕵️", isMovie: true, movieTitle: "莫斯科諜戰片", intent: "【電影名場面】對講機接到機密指令，冷靜回報「收到，沒問題！」", incoming: "Встречаемся у выхода через пять минут.", keyword: "收到沒問題 (Ponyal)",
+          options: [
+            { text: "Понял, без проблем!", phonetic: "Po-nyal, bez prob-lem!", correct: true },
+            { text: "Поехали!", phonetic: "Po-ye-kha-li!", correct: false },
+            { text: "Мне нужна помощь!", phonetic: "Mne nuzh-na po-moshch!", correct: false },
+            { text: "Сколько это стоит?", phonetic: "Skol-ko e-to sto-it?", correct: false }
+          ]
+        }
+      ]
+    },
+    {
+      id: 7, name: "開羅市集", langName: "埃及阿拉伯語・口語方言", langCode: "ar-EG",
+      speedTier: "L3 · 165 WPM（方言實戰）", timeLimit: 10.0, glitchRate: 0.30, accent: "#F97316",
+      tip: "避開街頭沒人講的標準語 MSA！直接用開羅當地最活用的埃及口語突圍！",
+      questions: [
+        { id: "ar1", icon: "🏷️", intent: "在哈利利市集指著燈飾問「這個多少錢？」", incoming: "أهلاً يا باشا! اتفضل!", keyword: "多少錢 (Bi-kam)",
+          options: [
+            { text: "بكام ده؟", phonetic: "Bi-kam da?", correct: true },
+            { text: "عايز ميه لو سمحت", phonetic: "A-yez may-ya law sa-maht", correct: false },
+            { text: "فين الحمام؟", phonetic: "Fein el-ham-mam?", correct: false },
+            { text: "مش فاهم، بشويش", phonetic: "Mish fa-hem, bi-shweish", correct: false }
+          ]
+        },
+        { id: "ar2", icon: "💧", intent: "沙漠市集很渴，請老闆拿一瓶水", incoming: "تشرب شاي ولا قهوة؟", keyword: "要水 (Ayez mayya)",
+          options: [
+            { text: "عايز ميه لو سمحت", phonetic: "A-yez may-ya law sa-maht", correct: true },
+            { text: "بكام ده؟", phonetic: "Bi-kam da?", correct: false },
+            { text: "غالي أوي!", phonetic: "Gha-lee a-wee!", correct: false },
+            { text: "فين الحمام؟", phonetic: "Fein el-ham-mam?", correct: false }
+          ]
+        },
+        { id: "ar3", icon: "😲", intent: "老闆開價太離譜，立刻喊出埃及經典殺價語「太貴了！」", incoming: "ألف جنيه بس علشانك!", keyword: "太貴了 (Ghalee awee)",
+          options: [
+            { text: "غالي أوي!", phonetic: "Gha-lee a-wee!", correct: true },
+            { text: "عايز ميه لو سمحت", phonetic: "A-yez may-ya law sa-maht", correct: false },
+            { text: "بكام ده؟", phonetic: "Bi-kam da?", correct: false },
+            { text: "مش فاهم، بشويش", phonetic: "Mish fa-hem, bi-shweish", correct: false }
+          ]
+        },
+        { id: "ar4", icon: "🚻", intent: "在市集巷弄裡問洗手間在哪裡", incoming: "أي خدمة يا فندم؟", keyword: "洗手間 (El-hammam)",
+          options: [
+            { text: "فين الحمام؟", phonetic: "Fein el-ham-mam?", correct: true },
+            { text: "غالي أوي!", phonetic: "Gha-lee a-wee!", correct: false },
+            { text: "بكام ده؟", phonetic: "Bi-kam da?", correct: false },
+            { text: "عايز ميه لو سمحت", phonetic: "A-yez may-ya law sa-maht", correct: false }
+          ]
+        },
+        { id: "ar5", icon: "🐢", intent: "老闆語速爆表，用埃及口語喊「我不懂，請慢慢講」", incoming: "ده شغل يدوي أصلي مية في المية من خان الخليلي...", keyword: "慢慢來 (Bi-shweish)",
+          options: [
+            { text: "مش فاهم، بشويش", phonetic: "Mish fa-hem, bi-shweish", correct: true },
+            { text: "بكام ده؟", phonetic: "Bi-kam da?", correct: false },
+            { text: "غالي أوي!", phonetic: "Gha-lee a-wee!", correct: false },
+            { text: "فين الحمام؟", phonetic: "Fein el-ham-mam?", correct: false }
+          ]
+        },
+        { id: "ar6", icon: "🏜️", isMovie: true, movieTitle: "開羅冒險片", intent: "【電影名場面】推開沙漠遺跡大門，招呼夥伴「走吧，出發！」", incoming: "جاهزين للمغامرة؟", keyword: "走吧出發 (Yalla beena)",
+          options: [
+            { text: "يلا بينا!", phonetic: "Yal-la bee-na!", correct: true },
+            { text: "مش معقول!", phonetic: "Mish ma'-ool!", correct: false },
+            { text: "بكام ده؟", phonetic: "Bi-kam da?", correct: false },
+            { text: "غالي أوي!", phonetic: "Gha-lee a-wee!", correct: false }
+          ]
+        },
+        { id: "ar7", icon: "🎬", isMovie: true, movieTitle: "埃及喜劇名場面", intent: "【電影名場面】看到離譜反轉劇情，脫口驚呼「真的假的？！不可能吧！」", incoming: "أنا لقيت الكنز في الشنطة!", keyword: "不可能吧 (Mish ma'ool)",
+          options: [
+            { text: "مش معقول!", phonetic: "Mish ma'-ool!", correct: true },
+            { text: "يلا بينا!", phonetic: "Yal-la bee-na!", correct: false },
+            { text: "عايز ميه لو سمحت", phonetic: "A-yez may-ya law sa-maht", correct: false },
+            { text: "مش فاهم، بشويش", phonetic: "Mish fa-hem, bi-shweish", correct: false }
+          ]
+        }
+      ]
+    },
+    {
+      id: 8, name: "紐約街頭餐車", langName: "英語・連音弱讀", langCode: "en-US",
+      speedTier: "L2 · 140 WPM", timeLimit: 11.5, glitchRate: 0.15, accent: "#0EA5E9",
+      tip: "別逐字翻譯！直接抓口語縮讀與封閉式二選一（Cash or card / Straight or left）！",
+      questions: [
+        { id: "en1", icon: "🧊", intent: "想點一杯少冰的冰咖啡", incoming: "Hey, what can I getcha today?", keyword: "少冰冰咖啡 (Iced coffee, light ice)",
+          options: [
+            { text: "I'd like an iced coffee, light ice", phonetic: "Ayd layk an ayst ko-fee, layt ays", correct: true },
+            { text: "Tap to pay, or cash only?", phonetic: "Tap too pey, or kash ohn-lee?", correct: false },
+            { text: "No bag, no receipt, thanks", phonetic: "Noh bag, noh ri-seet, thanks", correct: false },
+            { text: "Sorry, could you say that slower?", phonetic: "So-ree, kud yoo sey that sloh-er?", correct: false }
+          ]
+        },
+        { id: "en2", icon: "🧭", intent: "對話柔道二選一：地鐵站是直走還是左轉？", incoming: "You look lost, need directions?", keyword: "直走或左轉 (Straight / Left)",
+          options: [
+            { text: "Subway station, straight or left?", phonetic: "Sub-wey stey-shun, streyt or left?", correct: true },
+            { text: "I'd like an iced coffee, light ice", phonetic: "Ayd layk an ayst ko-fee, layt ays", correct: false },
+            { text: "Tap to pay, or cash only?", phonetic: "Tap too pey, or kash ohn-lee?", correct: false },
+            { text: "No bag, no receipt, thanks", phonetic: "Noh bag, noh ri-seet, thanks", correct: false }
+          ]
+        },
+        { id: "en3", icon: "💳", intent: "結帳時問老闆可以刷感應卡還是只收現金？", incoming: "That'll be seven fifty.", keyword: "刷卡或現金 (Tap / Cash)",
+          options: [
+            { text: "Tap to pay, or cash only?", phonetic: "Tap too pey, or kash ohn-lee?", correct: true },
+            { text: "Subway station, straight or left?", phonetic: "Sub-wey stey-shun, streyt or left?", correct: false },
+            { text: "Sorry, could you say that slower?", phonetic: "So-ree, kud yoo sey that sloh-er?", correct: false },
+            { text: "I'd like an iced coffee, light ice", phonetic: "Ayd layk an ayst ko-fee, layt ays", correct: false }
+          ]
+        },
+        { id: "en4", icon: "🛍️", intent: "店員問要不要袋子和收據，你揮手說都不用謝謝", incoming: "Want a bag or receipt with that?", keyword: "不用袋子收據 (No bag, no receipt)",
+          options: [
+            { text: "No bag, no receipt, thanks", phonetic: "Noh bag, noh ri-seet, thanks", correct: true },
+            { text: "Tap to pay, or cash only?", phonetic: "Tap too pey, or kash ohn-lee?", correct: false },
+            { text: "Subway station, straight or left?", phonetic: "Sub-wey stey-shun, streyt or left?", correct: false },
+            { text: "Sorry, could you say that slower?", phonetic: "So-ree, kud yoo sey that sloh-er?", correct: false }
+          ]
+        },
+        { id: "en5", icon: "🐢", intent: "對方美式連音太快，立刻使出煞車招請慢點再說一次", incoming: "Gonna hafta transfer at Times Square 'n catch the express downtown.", keyword: "慢一點 (Say that slower)",
+          options: [
+            { text: "Sorry, could you say that slower?", phonetic: "So-ree, kud yoo sey that sloh-er?", correct: true },
+            { text: "No bag, no receipt, thanks", phonetic: "Noh bag, noh ri-seet, thanks", correct: false },
+            { text: "I'd like an iced coffee, light ice", phonetic: "Ayd layk an ayst ko-fee, layt ays", correct: false },
+            { text: "Tap to pay, or cash only?", phonetic: "Tap too pey, or kash ohn-lee?", correct: false }
+          ]
+        },
+        { id: "en6", icon: "🤖", isMovie: true, movieTitle: "魔鬼終結者", intent: "【電影名場面】轉身離開前留下一句影史最帥預告「我會回來的！」", incoming: "Wait, where are you going?", keyword: "我會回來 (I'll be back)",
+          options: [
+            { text: "I'll be back", phonetic: "Ayl bee bak", correct: true },
+            { text: "May the Force be with you", phonetic: "Mey the fors bee with yoo", correct: false },
+            { text: "No bag, no receipt, thanks", phonetic: "Noh bag, noh ri-seet, thanks", correct: false },
+            { text: "Sorry, could you say that slower?", phonetic: "So-ree, kud yoo sey that sloh-er?", correct: false }
+          ]
+        },
+        { id: "en7", icon: "⚔️", isMovie: true, movieTitle: "星際大戰", intent: "【電影名場面】出任務前給戰友最經典的祝福「願原力與你同在」", incoming: "Wish me luck out there!", keyword: "願原力同在 (May the Force)",
+          options: [
+            { text: "May the Force be with you", phonetic: "Mey the fors bee with yoo", correct: true },
+            { text: "I'll be back", phonetic: "Ayl bee bak", correct: false },
+            { text: "Tap to pay, or cash only?", phonetic: "Tap too pey, or kash ohn-lee?", correct: false },
+            { text: "Subway station, straight or left?", phonetic: "Sub-wey stey-shun, streyt or left?", correct: false }
+          ]
+        }
+      ]
+    },
+    {
+      id: 9, name: "柏林中央車站", langName: "德語・萬用打包塊", langCode: "de-DE",
+      speedTier: "L3 · 150 WPM", timeLimit: 11.0, glitchRate: 0.22, accent: "#EAB308",
+      tip: "繞開德語四格與陰陽中性！直接用 Einmal / Bitte 打包生存句型！",
+      questions: [
+        { id: "de1", icon: "🎫", intent: "在售票口買一張前往中央車站的單程票", incoming: "Guten Tag! Wohin möchten Sie?", keyword: "中央車站 (Hauptbahnhof)",
+          options: [
+            { text: "Einmal zum Hauptbahnhof, bitte", phonetic: "Ayn-mal tsoom howpt-bahn-hohf, bi-te", correct: true },
+            { text: "Ein stilles Wasser, bitte", phonetic: "Ayn shti-les va-ser, bi-te", correct: false },
+            { text: "Die Rechnung, bitte", phonetic: "Dee rekh-noong, bi-te", correct: false },
+            { text: "Bitte etwas langsamer", phonetic: "Bi-te et-vas lang-zah-mer", correct: false }
+          ]
+        },
+        { id: "de2", icon: "💧", intent: "在德國餐館點一瓶沒有氣泡的純水（不要氣泡水）", incoming: "Was möchten Sie trinken?", keyword: "無氣泡水 (Stilles Wasser)",
+          options: [
+            { text: "Ein stilles Wasser, bitte", phonetic: "Ayn shti-les va-ser, bi-te", correct: true },
+            { text: "Mit Karte oder nur bar?", phonetic: "Mit kar-te oh-der noor bar?", correct: false },
+            { text: "Einmal zum Hauptbahnhof, bitte", phonetic: "Ayn-mal tsoom howpt-bahn-hohf, bi-te", correct: false },
+            { text: "Die Rechnung, bitte", phonetic: "Dee rekh-noong, bi-te", correct: false }
+          ]
+        },
+        { id: "de3", icon: "🧾", intent: "吃完德式香腸，舉手請服務生過來結帳", incoming: "Hat es Ihnen geschmeckt?", keyword: "結帳帳單 (Die Rechnung)",
+          options: [
+            { text: "Die Rechnung, bitte", phonetic: "Dee rekh-noong, bi-te", correct: true },
+            { text: "Ein stilles Wasser, bitte", phonetic: "Ayn shti-les va-ser, bi-te", correct: false },
+            { text: "Bitte etwas langsamer", phonetic: "Bi-te et-vas lang-zah-mer", correct: false },
+            { text: "Einmal zum Hauptbahnhof, bitte", phonetic: "Ayn-mal tsoom howpt-bahn-hohf, bi-te", correct: false }
+          ]
+        },
+        { id: "de4", icon: "💳", intent: "封閉式提問：可以刷卡還是只收現金？", incoming: "Das macht vierzehn Euro fünfzig.", keyword: "刷卡或現金 (Karte / Bar)",
+          options: [
+            { text: "Mit Karte oder nur bar?", phonetic: "Mit kar-te oh-der noor bar?", correct: true },
+            { text: "Die Rechnung, bitte", phonetic: "Dee rekh-noong, bi-te", correct: false },
+            { text: "Ein stilles Wasser, bitte", phonetic: "Ayn shti-les va-ser, bi-te", correct: false },
+            { text: "Bitte etwas langsamer", phonetic: "Bi-te et-vas lang-zah-mer", correct: false }
+          ]
+        },
+        { id: "de5", icon: "🐢", intent: "站務員德語連串指令太快，立刻喊煞車招請慢一點", incoming: "Gehen Sie zu Gleis zwölf und steigen Sie in den Regionalexpress um.", keyword: "慢一點 (Langsamer)",
+          options: [
+            { text: "Bitte etwas langsamer", phonetic: "Bi-te et-vas lang-zah-mer", correct: true },
+            { text: "Mit Karte oder nur bar?", phonetic: "Mit kar-te oh-der noor bar?", correct: false },
+            { text: "Einmal zum Hauptbahnhof, bitte", phonetic: "Ayn-mal tsoom howpt-bahn-hohf, bi-te", correct: false },
+            { text: "Die Rechnung, bitte", phonetic: "Dee rekh-noong, bi-te", correct: false }
+          ]
+        },
+        { id: "de6", icon: "🍺", isMovie: true, movieTitle: "柏林酒吧名場面", intent: "【電影名場面】破案慶功舉杯與夥伴大喊「乾杯！（敬健康！）」", incoming: "Auf unseren Erfolg!", keyword: "乾杯 (Prost)",
+          options: [
+            { text: "Prost! Zum Wohl!", phonetic: "Prohst! Tsoom vohl!", correct: true },
+            { text: "Alles klar, kein Problem!", phonetic: "A-les klahr, kayn proh-blehm!", correct: false },
+            { text: "Die Rechnung, bitte", phonetic: "Dee rekh-noong, bi-te", correct: false },
+            { text: "Bitte etwas langsamer", phonetic: "Bi-te et-vas lang-zah-mer", correct: false }
+          ]
+        },
+        { id: "de7", icon: "🚗", isMovie: true, movieTitle: "德國動作片場面", intent: "【電影名場面】接下秘密任務帥氣點頭「沒問題，一切搞定！」", incoming: "Können Sie das bis morgen schaffen?", keyword: "沒問題 (Alles klar)",
+          options: [
+            { text: "Alles klar, kein Problem!", phonetic: "A-les klahr, kayn proh-blehm!", correct: true },
+            { text: "Prost! Zum Wohl!", phonetic: "Prohst! Tsoom vohl!", correct: false },
+            { text: "Mit Karte oder nur bar?", phonetic: "Mit kar-te oh-der noor bar?", correct: false },
+            { text: "Ein stilles Wasser, bitte", phonetic: "Ayn shti-les va-ser, bi-te", correct: false }
+          ]
+        }
+      ]
+    },
+    {
+      id: 10, name: "全球總部終極突襲", langName: "跨語系 BOSS 戰", langCode: "en-US",
+      speedTier: "L4 · 185 WPM（全語系高壓）", timeLimit: 9.5, glitchRate: 0.35, accent: "#10B981",
+      tip: "終極測驗！不靠翻譯，靠 30 天練出的條件反射在 5 國語系間無縫切換！",
+      questions: [
+        { id: "boss1", icon: "🗼", intent: "【東京緊急切換】請再慢一點說一次！", incoming: "[L4 高速搶話] 乗り換えホームは地下三階ですが…", keyword: "日語煞車 (Yukkuri)",
+          langOverride: "ja-JP",
+          options: [
+            { text: "もう一度ゆっくりお願いします", phonetic: "Mou ichido yukkuri onegaishimasu", correct: true },
+            { text: "พูดช้าๆ หน่อยครับ", phonetic: "Phoot chaa-chaa noi khrap", correct: false },
+            { text: "Говорите медленнее", phonetic: "Go-vo-ri-te med-len-ne-ye", correct: false },
+            { text: "Plus lentement, s'il vous plaît", phonetic: "Ploo lont-mon, seel voo ple", correct: false }
+          ]
+        },
+        { id: "boss2", icon: "🌶️", intent: "【曼谷緊急切換】完全不要加辣！", incoming: "[L4 夜市噪音] ใส่พริกกี่เม็ดดีครับน้อง？", keyword: "泰語不辣 (Mai phet)",
+          langOverride: "th-TH",
+          options: [
+            { text: "ไม่เผ็ดนะครับ", phonetic: "Mai phet na khrap", correct: true },
+            { text: "辛くしないでください", phonetic: "Karaku shinaide kudasai", correct: false },
+            { text: "봉투 괜찮아요", phonetic: "Bong-tu gwaen-cha-na-yo", correct: false },
+            { text: "غالي أوي!", phonetic: "Gha-lee a-wee!", correct: false }
+          ]
+        },
+        { id: "boss3", icon: "🆘", intent: "【莫斯科緊急切換】我需要幫助！", incoming: "[L4 站台廣播干擾] Осторожно, двери закрываются!", keyword: "俄語求助 (Pomoshch)",
+          langOverride: "ru-RU",
+          options: [
+            { text: "Мне нужна помощь!", phonetic: "Mne nuzh-na po-moshch!", correct: true },
+            { text: "Necesito un médico, por favor", phonetic: "Ne-se-see-to oon me-dee-ko", correct: false },
+            { text: "감기약 주세요", phonetic: "Gam-gi-yak ju-se-yo", correct: false },
+            { text: "عايز ميه لو سمحت", phonetic: "A-yez may-ya law sa-maht", correct: false }
+          ]
+        },
+        { id: "boss4", icon: "💳", intent: "【巴黎緊急切換】刷卡還是現金？", incoming: "[L4 快速連音] Vous réglez comment aujourd'hui ?", keyword: "法語二選一 (Carte / Espèces)",
+          langOverride: "fr-FR",
+          options: [
+            { text: "Par carte ou en espèces ?", phonetic: "Par kart oo on es-pes?", correct: true },
+            { text: "카드 돼요?", phonetic: "Ka-deu dwae-yo?", correct: false },
+            { text: "¿Cuánto cuesta esto?", phonetic: "Kwan-to kwes-ta es-to?", correct: false },
+            { text: "بكام ده؟", phonetic: "Bi-kam da?", correct: false }
+          ]
+        },
+        { id: "boss5", icon: "🏜️", intent: "【開羅終極殺價】這實在太貴了！", incoming: "[L4 市集喧嘩] ده آخر سعر يا حبيبي مفيش فصال!", keyword: "埃及口語 (Ghalee awee)",
+          langOverride: "ar-EG",
+          options: [
+            { text: "غالي أوي!", phonetic: "Gha-lee a-wee!", correct: true },
+            { text: "ลดหน่อยได้ไหมครับ", phonetic: "Lot noi dai mai khrap", correct: false },
+            { text: "Сколько это стоит?", phonetic: "Skol-ko e-to sto-it?", correct: false },
+            { text: "이거 얼마예요?", phonetic: "I-geo eol-ma-ye-yo?", correct: false }
+          ]
+        },
+        { id: "boss6", icon: "🗽", intent: "【紐約緊急切換】對不起，可以說慢一點嗎？", incoming: "[L4 紐約高速連音] Take the uptown A train 'n transfer at 59th!", keyword: "英語煞車 (Say that slower)",
+          langOverride: "en-US",
+          options: [
+            { text: "Sorry, could you say that slower?", phonetic: "So-ree, kud yoo sey that sloh-er?", correct: true },
+            { text: "Bitte etwas langsamer", phonetic: "Bi-te et-vas lang-zah-mer", correct: false },
+            { text: "Plus lentement, s'il vous plaît", phonetic: "Ploo lont-mon, seel voo ple", correct: false },
+            { text: "No entiendo, más despacio", phonetic: "No en-tyen-do, mas des-pa-syo", correct: false }
+          ]
+        },
+        { id: "boss7", icon: "🥨", intent: "【柏林緊急切換】可以刷卡還是只收現金？", incoming: "[L4 車站廣播干擾] Macht achtzehn Euro neunzig, bitte!", keyword: "德語二選一 (Karte / Bar)",
+          langOverride: "de-DE",
+          options: [
+            { text: "Mit Karte oder nur bar?", phonetic: "Mit kar-te oh-der noor bar?", correct: true },
+            { text: "Tap to pay, or cash only?", phonetic: "Tap too pey, or kash ohn-lee?", correct: false },
+            { text: "Par carte ou en espèces ?", phonetic: "Par kart oo on es-pes?", correct: false },
+            { text: "카드 돼요?", phonetic: "Ka-deu dwae-yo?", correct: false }
+          ]
+        }
+      ]
+    }
+  ];
+
+  // =========================================================================
+  // PURE ENGINE MODULE (v2.1 — Zero back-to-back repeats + Cross-stage AMCD)
+  // =========================================================================
+  function createRng(seed) {
+    if (typeof seed !== "number") return Math.random;
+    let s = seed >>> 0;
+    return function () {
+      s = (s + 0x6D2B79F5) >>> 0;
+      let t = Math.imul(s ^ (s >>> 15), 1 | s);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function shuffleArray(arr, rng) {
+    const a = arr.slice();
+    const r = rng || Math.random;
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(r() * (i + 1));
+      const tmp = a[i];
+      a[i] = a[j];
+      a[j] = tmp;
+    }
+    return a;
+  }
+
+  function buildNonRepeatingQueue(questions, lastFirstId, rng) {
+    if (!questions || questions.length === 0) return [];
+    let shuffled = shuffleArray(questions, rng);
+    if (shuffled.length > 1 && lastFirstId && shuffled[0].id === lastFirstId) {
+      const swapIdx = 1 + Math.floor((rng || Math.random)() * (shuffled.length - 1));
+      const tmp = shuffled[0];
+      shuffled[0] = shuffled[swapIdx];
+      shuffled[swapIdx] = tmp;
+    }
+    return shuffled;
+  }
+
+  function createGameEngine(rng) {
+    const rand = rng || Math.random;
+    const DIFFICULTY_CURVE = [
+      { speedTier: "L1 · 100 WPM", timeLimit: 13.5, glitchRate: 0.00 },
+      { speedTier: "L1 · 110 WPM", timeLimit: 13.0, glitchRate: 0.00 },
+      { speedTier: "L2 · 125 WPM", timeLimit: 12.5, glitchRate: 0.08 },
+      { speedTier: "L2 · 130 WPM", timeLimit: 12.0, glitchRate: 0.12 },
+      { speedTier: "L2 · 135 WPM", timeLimit: 11.5, glitchRate: 0.15 },
+      { speedTier: "L2 · 140 WPM", timeLimit: 11.2, glitchRate: 0.18 },
+      { speedTier: "L3 · 155 WPM（超綱干擾）", timeLimit: 10.8, glitchRate: 0.25 },
+      { speedTier: "L3 · 160 WPM（超綱干擾）", timeLimit: 10.4, glitchRate: 0.30 },
+      { speedTier: "L3 · 168 WPM（超綱干擾）", timeLimit: 10.0, glitchRate: 0.30 },
+      { speedTier: "L4 · 185 WPM（全語系高壓）", timeLimit: 9.5, glitchRate: 0.35 }
+    ];
+
+    const state = {
+      status: "HOME",
+      stageIdx: 0,
+      stageOrder: STAGES.slice(),
+      lastFirstStageId: null,
+      hp: 3,
+      maxHp: 3,
+      survivors: 24,
+      sponsorDrops: 0,
+      score: 0,
+      combo: 0,
+      maxCombo: 0,
+      totalAnswered: 0,
+      totalCorrect: 0,
+      skills: { slow: 2, split: 2, echo: 2 },
+      queue: [],
+      carryoverVaccines: [], // Cross-stage AMCD vaccine carryover (guarantees ZERO back-to-back repeats!)
+      recastDoneIds: new Set(),
+      lastFirstIds: {},
+      lastServedId: null,
+      currentQuestion: null,
+      currentOptions: [],
+      eliminatedIndices: new Set(),
+      echoShieldActive: false,
+      slowActive: false,
+      timeLeft: 0,
+      timeMax: 10,
+      inputLocked: false,
+      overdrive: false,
+      iefpLogs: 0
+    };
+
+    function getCurrentStage() {
+      return state.stageOrder[state.stageIdx] || STAGES[0];
+    }
+
+    function startNewRun() {
+      state.status = "PLAYING";
+      state.stageIdx = 0;
+      // Randomly shuffle the 7 language stages (non-repeating, never same opening language twice in a row), keeping Boss Stage 8 as finale
+      const langStages = STAGES.slice(0, STAGES.length - 1);
+      const bossStage = STAGES[STAGES.length - 1];
+      const shuffledLangs = buildNonRepeatingQueue(langStages, state.lastFirstStageId, rand);
+      if (shuffledLangs.length > 0) state.lastFirstStageId = shuffledLangs[0].id;
+      const combined = shuffledLangs.concat([bossStage]);
+      state.stageOrder = combined.map((st, i) => ({
+        ...st,
+        displayNum: i + 1,
+        speedTier: DIFFICULTY_CURVE[i].speedTier,
+        timeLimit: DIFFICULTY_CURVE[i].timeLimit,
+        glitchRate: DIFFICULTY_CURVE[i].glitchRate
+      }));
+      state.hp = 3;
+      state.survivors = 24;
+      state.sponsorDrops = 0;
+      state.score = 0;
+      state.combo = 0;
+      state.maxCombo = 0;
+      state.totalAnswered = 0;
+      state.totalCorrect = 0;
+      state.skills = { slow: 2, split: 2, echo: 2 };
+      state.carryoverVaccines = [];
+      state.recastDoneIds = new Set();
+      state.lastServedId = null;
+      state.overdrive = false;
+      state.iefpLogs = 0;
+      loadStage(0);
+    }
+
+    function loadStage(idx) {
+      state.stageIdx = idx;
+      const stage = getCurrentStage();
+      // Replenish +1 skill & +1 HP on new stage transition (capped at max)
+      if (idx > 0) {
+        state.skills.slow = Math.min(3, state.skills.slow + 1);
+        state.skills.split = Math.min(3, state.skills.split + 1);
+        state.skills.echo = Math.min(3, state.skills.echo + 1);
+        if (state.hp < state.maxHp) state.hp++;
+      }
+      let stagePool = stage.questions;
+      const movieQs = stage.questions.filter(item => item.isMovie);
+      const normalQs = stage.questions.filter(item => !item.isMovie);
+      if (movieQs.length > 0 && normalQs.length > 3) {
+        // Draw 3 random survival chunks + all 2 iconic movie scenes, then shuffle cleanly without repeating last run's opener
+        const pickedNormal = shuffleArray(normalQs, rand).slice(0, 3);
+        stagePool = pickedNormal.concat(movieQs);
+      }
+      const q = buildNonRepeatingQueue(stagePool, state.lastFirstIds[stage.id], rand);
+      if (q.length > 0) state.lastFirstIds[stage.id] = q[0].id;
+      state.queue = q.map(item => ({ ...item, isVaccine: false, crossStage: false }));
+
+      // Inject at most 1 cross-stage AMCD carryover vaccine safely at slot >= 2 (never first, never back-to-back)
+      if (state.carryoverVaccines.length > 0) {
+        const carried = state.carryoverVaccines.shift();
+        const insertPos = Math.min(2, state.queue.length);
+        state.queue.splice(insertPos, 0, carried);
+      }
+
+      state.status = "PLAYING";
+      nextQuestion();
+    }
+
+    function nextQuestion() {
+      if (state.queue.length === 0) {
+        state.currentQuestion = null;
+        state.inputLocked = true;
+        if (state.stageIdx >= state.stageOrder.length - 1) {
+          state.survivors = 1;
+          state.status = "VICTORY";
+        } else {
+          // Hunger Games tribute elimination curve across 9 carriages (24 -> 21 -> 18 -> 15 -> 12 -> 9 -> 6 -> 4 -> 3 -> 2)
+          const remainingTable = [21, 18, 15, 12, 9, 6, 4, 3, 2, 1];
+          state.survivors = remainingTable[Math.min(state.stageIdx, remainingTable.length - 1)];
+          state.status = "STAGE_CLEAR";
+        }
+        return { event: state.status };
+      }
+
+      // Defensive guard: if queue head matches lastServedId and queue has another item, swap them
+      if (state.queue.length > 1 && state.lastServedId && state.queue[0].id === state.lastServedId) {
+        const tmp = state.queue[0];
+        state.queue[0] = state.queue[1];
+        state.queue[1] = tmp;
+      }
+
+      const next = state.queue.shift();
+      state.lastServedId = next.id;
+      state.currentQuestion = next;
+      state.currentOptions = shuffleArray(next.options, rand);
+      state.eliminatedIndices = new Set();
+      state.echoShieldActive = false;
+      state.slowActive = false;
+      const stage = getCurrentStage();
+      state.timeMax = next.isVaccine ? stage.timeLimit + 1.5 : stage.timeLimit;
+      state.timeLeft = state.timeMax;
+      state.inputLocked = false;
+      return { event: "QUESTION_READY", question: next, options: state.currentOptions };
+    }
+
+    function useSkill(type) {
+      if (state.status !== "PLAYING" || state.inputLocked || !state.currentQuestion) {
+        return { ok: false, reason: "LOCKED" };
+      }
+      if (state.skills[type] <= 0) return { ok: false, reason: "EMPTY" };
+
+      if (type === "slow") {
+        if (state.slowActive) return { ok: false, reason: "ALREADY_ACTIVE" };
+        state.skills.slow--;
+        state.slowActive = true;
+        state.timeLeft = Math.min(state.timeMax, state.timeLeft + 4.0);
+        return { ok: true, type: "slow" };
+      }
+      if (type === "split") {
+        if (state.eliminatedIndices.size >= 2) return { ok: false, reason: "ALREADY_ACTIVE" };
+        const wrongIndices = [];
+        state.currentOptions.forEach((opt, i) => {
+          if (!opt.correct && !state.eliminatedIndices.has(i)) wrongIndices.push(i);
+        });
+        if (wrongIndices.length === 0) return { ok: false, reason: "NO_TARGETS" };
+        state.skills.split--;
+        const picked = shuffleArray(wrongIndices, rand).slice(0, 2);
+        picked.forEach(i => state.eliminatedIndices.add(i));
+        return { ok: true, type: "split", eliminated: picked };
+      }
+      if (type === "echo") {
+        if (state.echoShieldActive) return { ok: false, reason: "ALREADY_ACTIVE" };
+        state.skills.echo--;
+        state.echoShieldActive = true;
+        return { ok: true, type: "echo", keyword: state.currentQuestion.keyword };
+      }
+      return { ok: false, reason: "UNKNOWN" };
+    }
+
+    function submitAnswer(optionIdx) {
+      if (state.status !== "PLAYING" || state.inputLocked || !state.currentQuestion) {
+        return { ignored: true };
+      }
+      if (optionIdx < 0 || optionIdx >= state.currentOptions.length) {
+        return { ignored: true };
+      }
+      if (state.eliminatedIndices.has(optionIdx)) {
+        return { ignored: true };
+      }
+
+      state.inputLocked = true;
+      state.totalAnswered++;
+      const chosen = state.currentOptions[optionIdx];
+      const elapsed = state.timeMax - state.timeLeft;
+      const q = state.currentQuestion;
+
+      if (chosen.correct) {
+        state.totalCorrect++;
+        state.combo++;
+        if (state.combo > state.maxCombo) state.maxCombo = state.combo;
+        const wasOverdrive = state.overdrive;
+        state.overdrive = state.combo >= 3;
+        const speedBonus = Math.round((state.timeLeft / state.timeMax) * 100);
+        const vaccineBonus = q.isVaccine ? 80 : 0;
+        const movieBonus = q.isMovie ? 50 : 0;
+        const mult = state.overdrive ? 2 : 1;
+        const gained = (150 + speedBonus + vaccineBonus + movieBonus) * mult;
+        state.score += gained;
+
+        let healed = false;
+        let sponsorGift = null;
+        if (!wasOverdrive && state.overdrive) {
+          state.sponsorDrops++;
+          if (state.hp < state.maxHp) {
+            state.hp++;
+            healed = true;
+            sponsorGift = "急救包 +1 生命";
+          } else {
+            const skList = ["slow", "split", "echo"];
+            const chosenSk = skList[Math.floor(rand() * skList.length)];
+            state.skills[chosenSk] = Math.min(3, state.skills[chosenSk] + 1);
+            sponsorGift = chosenSk === "slow" ? "緊急門栓 +1" : (chosenSk === "split" ? "信號彈 +1" : "鐵板防線 +1");
+          }
+        }
+
+        let hesitationLogged = false;
+        if (!q.isVaccine && elapsed > state.timeMax * 0.65 && !state.recastDoneIds.has(q.id)) {
+          state.iefpLogs++;
+          hesitationLogged = true;
+        }
+
+        return {
+          correct: true,
+          gained,
+          combo: state.combo,
+          overdrive: state.overdrive,
+          healed,
+          sponsorGift,
+          hesitationLogged,
+          correctIndex: optionIdx
+        };
+      } else {
+        return handleFailure(optionIdx, false);
+      }
+    }
+
+    function tick(dt) {
+      if (state.status !== "PLAYING" || state.inputLocked || !state.currentQuestion) {
+        return null;
+      }
+      const speedFactor = state.slowActive ? 0.48 : 1.0;
+      state.timeLeft = Math.max(0, state.timeLeft - dt * speedFactor);
+      if (state.timeLeft <= 0) {
+        state.inputLocked = true;
+        state.totalAnswered++;
+        return handleFailure(-1, true);
+      }
+      return null;
+    }
+
+    function handleFailure(chosenIdx, isTimeout) {
+      const q = state.currentQuestion;
+      const stage = getCurrentStage();
+      const correctIndex = state.currentOptions.findIndex(o => o.correct);
+      state.combo = 0;
+      state.overdrive = false;
+
+      // v2.1 FIX: Never cause back-to-back repeat on the last question of a stage!
+      // If >=1 question remains in current stage, insert vaccine at index >=1;
+      // otherwise defer to crossStage AMCD carryover for the next stage!
+      if (!q.isVaccine && !state.recastDoneIds.has(q.id)) {
+        state.recastDoneIds.add(q.id);
+        state.iefpLogs++;
+        const vacItem = {
+          ...q,
+          isVaccine: true,
+          langOverride: q.langOverride || stage.langCode
+        };
+        if (state.queue.length >= 1) {
+          const pos = Math.min(2, state.queue.length);
+          state.queue.splice(pos, 0, vacItem);
+        } else if (state.stageIdx < state.stageOrder.length - 1) {
+          vacItem.crossStage = true;
+          state.carryoverVaccines.push(vacItem);
+        }
+      }
+
+      let shielded = false;
+      if (state.echoShieldActive) {
+        shielded = true;
+        state.echoShieldActive = false;
+      } else {
+        state.hp = Math.max(0, state.hp - 1);
+      }
+
+      if (state.hp <= 0) {
+        state.status = "GAME_OVER";
+      }
+
+      return {
+        correct: false,
+        isTimeout,
+        chosenIdx,
+        correctIndex,
+        shielded,
+        gameOver: state.status === "GAME_OVER"
+      };
+    }
+
+    function confirmNextStage() {
+      if (state.status !== "STAGE_CLEAR") return false;
+      if (state.stageIdx + 1 >= state.stageOrder.length) {
+        state.status = "VICTORY";
+        return false;
+      }
+      loadStage(state.stageIdx + 1);
+      return true;
+    }
+
+    return {
+      state,
+      startNewRun,
+      loadStage,
+      nextQuestion,
+      useSkill,
+      submitAnswer,
+      tick,
+      confirmNextStage,
+      getCurrentStage
+    };
+  }
+
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = { STAGES, createRng, shuffleArray, buildNonRepeatingQueue, createGameEngine };
+    return;
+  }
+
+  // =========================================================================
+  // BROWSER RUNTIME: Extended 48-second Web Audio BGM + Musical SFX + Speech
+  // =========================================================================
+  const AudioEngine = (function () {
+    let ctx = null;
+    let muted = false;
+    let bgmTimer = null;
+    let bgmStep = 0;
+
+    // 48-second evolving 8-chord cyber-spy progression (128 steps @ 0.375s = 48.0s loop)
+    const PROGRESSION = [
+      [146.83, 220.00, 293.66, 349.23],
+      [130.81, 196.00, 261.63, 329.63],
+      [116.54, 174.61, 233.08, 293.66],
+      [110.00, 164.81, 220.00, 261.63],
+      [174.61, 220.00, 261.63, 349.23],
+      [196.00, 246.94, 293.66, 392.00],
+      [164.81, 246.94, 329.63, 392.00],
+      [110.00, 164.81, 220.00, 277.18]
+    ];
+
+    function init() {
+      if (!ctx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) ctx = new AC();
+      }
+      if (ctx && ctx.state === "suspended") {
+        ctx.resume().catch(() => {});
+      }
+    }
+
+    function startBgm() {
+      init();
+      if (bgmTimer || muted || !ctx) return;
+      bgmTimer = setInterval(() => {
+        if (muted || !ctx || ctx.state !== "running") return;
+        const now = ctx.currentTime;
+        const chordIdx = Math.floor(bgmStep / 16) % PROGRESSION.length;
+        const chord = PROGRESSION[chordIdx];
+        const beat = bgmStep % 16;
+
+        if (beat % 4 === 0) {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = "triangle";
+          osc.frequency.setValueAtTime(chord[0] * 0.5, now);
+          gain.gain.setValueAtTime(0.055, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.36);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.38);
+        }
+
+        const arpNote = chord[beat % chord.length] * (beat >= 8 ? 2 : 1);
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.type = "sine";
+        osc2.frequency.setValueAtTime(arpNote, now);
+        gain2.gain.setValueAtTime(0.022, now);
+        gain2.gain.exponentialRampToValueAtTime(0.0008, now + 0.28);
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.start(now);
+        osc2.stop(now + 0.30);
+
+        bgmStep = (bgmStep + 1) % 128;
+      }, 375);
+    }
+
+    function stopBgm() {
+      if (bgmTimer) {
+        clearInterval(bgmTimer);
+        bgmTimer = null;
+      }
+    }
+
+    function playSfx(kind) {
+      if (muted) return;
+      init();
+      if (!ctx) return;
+      const now = ctx.currentTime;
+
+      if (kind === "hit" || kind === "overdrive") {
+        const notes = kind === "overdrive" ? [523.25, 659.25, 783.99, 1046.5] : [440, 659.25];
+        notes.forEach((f, idx) => {
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.type = "triangle";
+          o.frequency.setValueAtTime(f, now + idx * 0.055);
+          g.gain.setValueAtTime(0.11, now + idx * 0.055);
+          g.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.055 + 0.22);
+          o.connect(g);
+          g.connect(ctx.destination);
+          o.start(now + idx * 0.055);
+          o.stop(now + idx * 0.055 + 0.24);
+        });
+      } else if (kind === "miss") {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = "sawtooth";
+        o.frequency.setValueAtTime(165, now);
+        o.frequency.exponentialRampToValueAtTime(88, now + 0.26);
+        g.gain.setValueAtTime(0.09, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+        o.connect(g);
+        g.connect(ctx.destination);
+        o.start(now);
+        o.stop(now + 0.30);
+      } else if (kind === "skill") {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = "sine";
+        o.frequency.setValueAtTime(620, now);
+        o.frequency.exponentialRampToValueAtTime(980, now + 0.16);
+        g.gain.setValueAtTime(0.09, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+        o.connect(g);
+        g.connect(ctx.destination);
+        o.start(now);
+        o.stop(now + 0.20);
+      } else if (kind === "clear") {
+        // Hunger Games Capitol Cannon Boom + Steel Door Lock chime
+        const boom = ctx.createOscillator();
+        const bg = ctx.createGain();
+        boom.type = "sine";
+        boom.frequency.setValueAtTime(110, now);
+        boom.frequency.exponentialRampToValueAtTime(34, now + 0.55);
+        bg.gain.setValueAtTime(0.24, now);
+        bg.gain.exponentialRampToValueAtTime(0.001, now + 0.60);
+        boom.connect(bg);
+        bg.connect(ctx.destination);
+        boom.start(now);
+        boom.stop(now + 0.62);
+        [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.type = "triangle";
+          o.frequency.setValueAtTime(f, now + i * 0.09);
+          g.gain.setValueAtTime(0.12, now + i * 0.09);
+          g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.09 + 0.38);
+          o.connect(g);
+          g.connect(ctx.destination);
+          o.start(now + i * 0.09);
+          o.stop(now + i * 0.09 + 0.40);
+        });
+      }
+    }
+
+    function speak(text, lang, rate) {
+      if (muted || typeof window.speechSynthesis === "undefined") return;
+      try {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = lang || "en-US";
+        u.rate = rate || 0.94;
+        window.speechSynthesis.speak(u);
+      } catch (_) {}
+    }
+
+    function toggleMute() {
+      muted = !muted;
+      if (muted) {
+        stopBgm();
+        try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (_) {}
+      } else {
+        startBgm();
+      }
+      return muted;
+    }
+
+    return { init, startBgm, stopBgm, playSfx, speak, toggleMute, isMuted: () => muted };
+  })();
+
+  // =========================================================================
+  // LIVE TACTICAL CANVAS RENDERER
+  // =========================================================================
+  const canvas = document.getElementById("gameCanvas");
+  const c2d = canvas.getContext("2d");
+  let W = window.innerWidth;
+  let H = window.innerHeight;
+  let dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+  const particles = [];
+  const beams = [];
+  const parachutes = [];
+  let shakeTime = 0;
+  let trainScroll = 0;
+  let radarAngle = 0;
+  let lastFrameTs = 0;
+  let rafId = null;
+  let currentWaveY = 180;
+
+  function resizeCanvas() {
+    W = window.innerWidth;
+    H = window.innerHeight;
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.floor(W * dpr);
+    canvas.height = Math.floor(H * dpr);
+    canvas.style.width = W + "px";
+    canvas.style.height = H + "px";
+    c2d.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function spawnExplosion(x, y, color, count) {
+    for (let i = 0; i < count; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const spd = 80 + Math.random() * 250;
+      particles.push({
+        x, y,
+        vx: Math.cos(ang) * spd,
+        vy: Math.sin(ang) * spd,
+        life: 0.45 + Math.random() * 0.45,
+        maxLife: 0.9,
+        size: 2 + Math.random() * 4,
+        color
+      });
+    }
+  }
+
+  function spawnBeam(targetY, color) {
+    beams.push({
+      x1: W * 0.5, y1: H * 0.68,
+      x2: W * 0.5, y2: targetY,
+      life: 0.28, maxLife: 0.28, color
+    });
+  }
+
+  function spawnParachute() {
+    parachutes.push({
+      x: W * (0.25 + Math.random() * 0.5),
+      y: 40,
+      vy: 68,
+      sway: Math.random() * Math.PI * 2,
+      life: 2.6
+    });
+  }
+
+  function spawnFirework() {
+    const fx = W * (0.18 + Math.random() * 0.64);
+    const fy = H * (0.15 + Math.random() * 0.34);
+    const colors = ["#38BDF8", "#10B981", "#F59E0B", "#F43F5E", "#A78BFA"];
+    const col = colors[Math.floor(Math.random() * colors.length)];
+    spawnExplosion(fx, fy, col, 36);
+  }
+
+  // =========================================================================
+  // UI CONTROLLER & GAME LOOP
+  // =========================================================================
+  const engine = createGameEngine();
+  let nextQTimeout = null;
+  let toastTimeout = null;
+  let fwAccum = 0;
+  let activeModalMode = null;
+
+  const els = {
+    homeScreen: document.getElementById("homeScreen"),
+    hudLayer: document.getElementById("hudLayer"),
+    bgmToggle: document.getElementById("bgmToggle"),
+    startBtn: document.getElementById("startBtn"),
+    rulesBtn: document.getElementById("rulesBtn"),
+    rulesModal: document.getElementById("rulesModal"),
+    closeRulesBtn: document.getElementById("closeRulesBtn"),
+    resultModal: document.getElementById("resultModal"),
+    resultTitle: document.getElementById("resultTitle"),
+    resultDesc: document.getElementById("resultDesc"),
+    resScore: document.getElementById("resScore"),
+    resCombo: document.getElementById("resCombo"),
+    resAcc: document.getElementById("resAcc"),
+    resultActionBtn: document.getElementById("resultActionBtn"),
+    resultHomeBtn: document.getElementById("resultHomeBtn"),
+    stageLabel: document.getElementById("stageLabel"),
+    comboBadge: document.getElementById("comboBadge"),
+    survivorBadge: document.getElementById("survivorBadge"),
+    hpHearts: document.getElementById("hpHearts"),
+    scoreVal: document.getElementById("scoreVal"),
+    timerFill: document.getElementById("timerFill"),
+    iefpPill: document.getElementById("iefpPill"),
+    dramaPanel: document.getElementById("dramaPanel"),
+    sceneActor: document.getElementById("sceneActor"),
+    sceneTag: document.getElementById("sceneTag"),
+    replayAudioBtn: document.getElementById("replayAudioBtn"),
+    intentText: document.getElementById("intentText"),
+    incomingCue: document.getElementById("incomingCue"),
+    optionsGrid: document.getElementById("optionsGrid"),
+    skillSlow: document.getElementById("skillSlow"),
+    skillSplit: document.getElementById("skillSplit"),
+    skillEcho: document.getElementById("skillEcho"),
+    cntSlow: document.getElementById("cntSlow"),
+    cntSplit: document.getElementById("cntSplit"),
+    cntEcho: document.getElementById("cntEcho"),
+    toastBanner: document.getElementById("toastBanner")
+  };
+
+  function showToast(msg) {
+    els.toastBanner.textContent = msg;
+    els.toastBanner.classList.add("show");
+    if (toastTimeout) clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => els.toastBanner.classList.remove("show"), 1850);
+  }
+
+  function speakIncomingPrompt(rate) {
+    const q = engine.state.currentQuestion;
+    if (!q) return;
+    const stage = engine.getCurrentStage();
+    const cleanText = String(q.incoming || "").replace(/\[[^\]]*\]/g, "").trim();
+    if (!cleanText) return;
+    AudioEngine.speak(cleanText, q.langOverride || stage.langCode, rate || 0.95);
+  }
+
+  function speakCurrentCorrect(rate) {
+    const q = engine.state.currentQuestion;
+    if (!q) return;
+    const stage = engine.getCurrentStage();
+    const correctOpt = engine.state.currentOptions.find(o => o.correct);
+    if (!correctOpt) return;
+    AudioEngine.speak(correctOpt.text, q.langOverride || stage.langCode, rate || 0.94);
+  }
+
+  function renderHud() {
+    const s = engine.state;
+    const stage = engine.getCurrentStage();
+    const carNum = Math.max(1, s.stageOrder.length - s.stageIdx);
+    els.stageLabel.textContent = `第 ${carNum} 節車廂 · ${stage.name}（${stage.langName}）`;
+    els.survivorBadge.textContent = `💀 存活 ${s.survivors}/24`;
+    els.hpHearts.textContent = "♥".repeat(s.hp) + "♡".repeat(Math.max(0, s.maxHp - s.hp));
+    els.scoreVal.textContent = String(s.score);
+
+    if (s.combo >= 2) {
+      els.comboBadge.textContent = s.overdrive ? `超頻 x${s.combo}` : `連擊 x${s.combo}`;
+      els.comboBadge.classList.add("show");
+    } else {
+      els.comboBadge.classList.remove("show");
+    }
+
+    els.iefpPill.textContent = s.iefpLogs > 0 ? `IEFP 指紋×${s.iefpLogs}` : "IEFP 概念同步";
+    els.cntSlow.textContent = String(s.skills.slow);
+    els.cntSplit.textContent = String(s.skills.split);
+    els.cntEcho.textContent = String(s.skills.echo);
+    els.skillSlow.disabled = s.skills.slow <= 0 || s.slowActive || s.inputLocked;
+    els.skillSplit.disabled = s.skills.split <= 0 || s.eliminatedIndices.size >= 2 || s.inputLocked;
+    els.skillEcho.disabled = s.skills.echo <= 0 || s.echoShieldActive || s.inputLocked;
+  }
+
+  function renderQuestion() {
+    const s = engine.state;
+    const q = s.currentQuestion;
+    if (!q) return;
+    const stage = engine.getCurrentStage();
+
+    els.dramaPanel.classList.toggle("vaccine", !!q.isVaccine);
+    els.dramaPanel.classList.toggle("movie", !!q.isMovie && !q.isVaccine);
+    els.dramaPanel.classList.toggle("overdrive", !!s.overdrive);
+    els.sceneActor.textContent = q.icon;
+    els.sceneTag.className = q.isVaccine ? "scene-tag vaccine" : (q.isMovie ? "scene-tag movie" : "scene-tag");
+    els.sceneTag.textContent = q.isVaccine
+      ? (q.crossStage ? `💉 跨關 AMCD 防爆疫苗 · 加分 +80` : `💉 AMCD 防爆疫苗重試波 · 加分 +80`)
+      : (q.isMovie ? `🎬 電影名場面·${q.movieTitle || "經典台詞"}（+50）· ${stage.speedTier}` : `零符號微戲劇 · ${stage.speedTier}`);
+    els.intentText.textContent = q.intent;
+
+    const kwHtml = s.echoShieldActive
+      ? ` ｜ <strong>關鍵詞鎖定：${q.keyword}</strong>`
+      : "";
+    els.incomingCue.innerHTML = `對方語音：「${q.incoming}」${kwHtml}`;
+
+    els.optionsGrid.innerHTML = "";
+    s.currentOptions.forEach((opt, idx) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "opt-btn";
+      if (s.eliminatedIndices.has(idx)) btn.classList.add("eliminated");
+      btn.innerHTML = `<span class="opt-native">${opt.text}</span><span class="opt-phonetic">${opt.phonetic}</span>`;
+      btn.addEventListener("click", () => onSelectOption(idx, btn));
+      els.optionsGrid.appendChild(btn);
+    });
+
+    renderHud();
+    if (q.isVaccine) {
+      speakCurrentCorrect(0.86);
+    } else {
+      speakIncomingPrompt(0.95);
+    }
+  }
+
+  function onSelectOption(idx, btnEl) {
+    const res = engine.submitAnswer(idx);
+    if (res.ignored) return;
+
+    const buttons = els.optionsGrid.querySelectorAll(".opt-btn");
+    buttons.forEach(b => (b.disabled = true));
+    const targetBtn = btnEl || buttons[idx];
+
+    if (res.correct) {
+      if (targetBtn) targetBtn.classList.add("correct");
+      AudioEngine.playSfx(res.overdrive ? "overdrive" : "hit");
+      speakCurrentCorrect(0.95);
+      spawnBeam(currentWaveY, res.overdrive ? "#10B981" : "#38BDF8");
+      spawnExplosion(W * 0.5, currentWaveY, res.overdrive ? "#10B981" : "#38BDF8", 28);
+      if (res.sponsorGift) {
+        spawnParachute();
+        showToast(`🪂 飢餓贊助空投！獲得【${res.sponsorGift}】＋ 雙倍超頻`);
+      } else if (res.hesitationLogged) {
+        showToast(`鎖門成功 +${res.gained}（感染者已記住猶豫破綻）`);
+      } else {
+        showToast(res.overdrive ? `🔥 戰神超頻擊退！+${res.gained}` : `🚪 成功鎖門擊退 +${res.gained}`);
+      }
+    } else {
+      if (targetBtn) targetBtn.classList.add("wrong");
+      if (buttons[res.correctIndex]) buttons[res.correctIndex].classList.add("correct");
+      AudioEngine.playSfx("miss");
+      speakCurrentCorrect(0.82);
+      shakeTime = 0.3;
+      spawnExplosion(W * 0.5, H * 0.65, "#F43F5E", 26);
+      showToast(res.shielded ? "🛡️ 鐵板防線擋下破門！該感染者稍後將再次突襲" : "🧟 感染者衝破車門！已標記為防爆疫苗突襲波");
+    }
+
+    renderHud();
+    scheduleAdvance(res.gameOver);
+  }
+
+  function scheduleAdvance(isGameOver) {
+    if (nextQTimeout) clearTimeout(nextQTimeout);
+    nextQTimeout = setTimeout(() => {
+      if (isGameOver || engine.state.status === "GAME_OVER") {
+        openResultModal("GAME_OVER");
+        return;
+      }
+      const next = engine.nextQuestion();
+      if (next.event === "STAGE_CLEAR" || next.event === "VICTORY") {
+        AudioEngine.playSfx("clear");
+        openResultModal(next.event);
+      } else {
+        renderQuestion();
+      }
+    }, 1020);
+  }
+
+  function openResultModal(mode) {
+    activeModalMode = mode;
+    const s = engine.state;
+    const stage = engine.getCurrentStage();
+    const acc = s.totalAnswered > 0 ? Math.round((s.totalCorrect / s.totalAnswered) * 100) : 100;
+    els.resScore.textContent = String(s.score);
+    els.resCombo.textContent = `x${s.maxCombo}`;
+    els.resAcc.textContent = `${acc}%`;
+
+    if (mode === "STAGE_CLEAR") {
+      const nextStage = s.stageOrder[s.stageIdx + 1];
+      const clearedCar = Math.max(1, s.stageOrder.length - s.stageIdx);
+      const nextCar = Math.max(1, clearedCar - 1);
+      els.resultTitle.textContent = `🚪 突破第 ${clearedCar} 節車廂！砲聲響起（存活 ${s.survivors}/24）`;
+      els.resultDesc.textContent = `已甩開「${stage.langName}」感染者並補充急救與道具！前方第 ${nextCar} 節車廂：${nextStage.name}（${nextStage.langName}）— ${nextStage.tip}`;
+      els.resultActionBtn.textContent = `突入第 ${nextCar} 節車廂`;
+    } else if (mode === "VICTORY") {
+      els.resultTitle.textContent = "🎆 恭喜破關！唯一生還者 #1";
+      els.resultDesc.textContent = "你成功衝進第 1 節駕駛室抵達安全終點站，在 24 名倖存者中脫穎而出，征服 9 大隨機語系與電影名場面！";
+      els.resultActionBtn.textContent = "再搭下一班列車（全新隨機語系）";
+      spawnFirework();
+    } else {
+      const deadCar = Math.max(1, s.stageOrder.length - s.stageIdx);
+      els.resultTitle.textContent = `🧟 第 ${deadCar} 節車廂失守 · 砲聲響起`;
+      els.resultDesc.textContent = `你在「${stage.name}（${stage.langName}）」遭感染者包圍（最終排名 #${s.survivors}/24）。重新突圍時車廂語系與題目將全面隨機重洗！`;
+      els.resultActionBtn.textContent = "重返第 10 節車廂";
+    }
+
+    els.resultModal.classList.add("show");
+  }
+
+  function handleResultAction() {
+    els.resultModal.classList.remove("show");
+    if (activeModalMode === "STAGE_CLEAR") {
+      engine.confirmNextStage();
+      renderQuestion();
+    } else {
+      startGameFlow();
+    }
+    activeModalMode = null;
+  }
+
+  function startGameFlow() {
+    if (nextQTimeout) clearTimeout(nextQTimeout);
+    AudioEngine.startBgm();
+    els.homeScreen.style.display = "none";
+    els.hudLayer.classList.add("active");
+    els.resultModal.classList.remove("show");
+    activeModalMode = null;
+    engine.startNewRun();
+    renderQuestion();
+  }
+
+  // Controls Wiring (Clean addEventListener — zero listener leaks)
+  els.startBtn.addEventListener("click", startGameFlow);
+  els.rulesBtn.addEventListener("click", () => {
+    AudioEngine.init();
+    els.rulesModal.classList.add("show");
+  });
+  els.closeRulesBtn.addEventListener("click", () => els.rulesModal.classList.remove("show"));
+  els.resultActionBtn.addEventListener("click", handleResultAction);
+  els.resultHomeBtn.addEventListener("click", () => {
+    els.resultModal.classList.remove("show");
+    els.hudLayer.classList.remove("active");
+    els.homeScreen.style.display = "flex";
+    activeModalMode = null;
+    engine.state.status = "HOME";
+  });
+
+  els.bgmToggle.addEventListener("click", () => {
+    const isMuted = AudioEngine.toggleMute();
+    els.bgmToggle.textContent = isMuted ? "🔇 靜音中" : "🔊 音效開";
+    els.bgmToggle.classList.toggle("muted", isMuted);
+  });
+
+  els.replayAudioBtn.addEventListener("click", () => {
+    speakCurrentCorrect(engine.state.slowActive ? 0.72 : 0.94);
+  });
+
+  function triggerSlow() {
+    const r = engine.useSkill("slow");
+    if (r.ok) {
+      AudioEngine.playSfx("skill");
+      speakCurrentCorrect(0.72);
+      showToast("🚪 緊急門栓上鎖！喪屍減速 50% 並慢速重播");
+      renderHud();
+    }
+  }
+
+  function triggerSplit() {
+    const r = engine.useSkill("split");
+    if (r.ok) {
+      AudioEngine.playSfx("skill");
+      const btns = els.optionsGrid.querySelectorAll(".opt-btn");
+      r.eliminated.forEach(i => { if (btns[i]) btns[i].classList.add("eliminated"); });
+      showToast("🔦 隧道信號彈點燃！已排除兩個錯誤選項");
+      renderHud();
+    }
+  }
+
+  function triggerEcho() {
+    const r = engine.useSkill("echo");
+    if (r.ok) {
+      AudioEngine.playSfx("skill");
+      showToast(`🛡️ 鐵板防線焊死！擋下一次破門・關鍵詞：${r.keyword}`);
+      renderQuestion();
+    }
+  }
+
+  els.skillSlow.addEventListener("click", triggerSlow);
+  els.skillSplit.addEventListener("click", triggerSplit);
+  els.skillEcho.addEventListener("click", triggerEcho);
+
+  // Desktop Arcade Keyboard Shortcuts
+  window.addEventListener("keydown", (e) => {
+    if (els.resultModal.classList.contains("show")) {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        handleResultAction();
+      }
+      return;
+    }
+    if (engine.state.status !== "PLAYING" || engine.state.inputLocked) return;
+    if (e.key >= "1" && e.key <= "4") {
+      const idx = Number(e.key) - 1;
+      const btns = els.optionsGrid.querySelectorAll(".opt-btn");
+      onSelectOption(idx, btns[idx]);
+    } else if (e.key === "q" || e.key === "Q") {
+      triggerSlow();
+    } else if (e.key === "w" || e.key === "W") {
+      triggerSplit();
+    } else if (e.key === "e" || e.key === "E") {
+      triggerEcho();
+    } else if (e.key === "r" || e.key === "R") {
+      speakCurrentCorrect(engine.state.slowActive ? 0.72 : 0.94);
+    }
+  });
+
+  // Main Animation Loop
+  function frame(ts) {
+    const dt = lastFrameTs ? Math.min(0.05, (ts - lastFrameTs) / 1000) : 0.016;
+    lastFrameTs = ts;
+    radarAngle += dt * 0.65;
+
+    if (engine.state.status === "PLAYING" && !engine.state.inputLocked) {
+      const timeoutRes = engine.tick(dt);
+      const pct = engine.state.timeMax > 0 ? (engine.state.timeLeft / engine.state.timeMax) * 100 : 0;
+      els.timerFill.style.width = pct.toFixed(1) + "%";
+      els.timerFill.classList.toggle("warn", pct < 32);
+
+      if (timeoutRes) {
+        const btns = els.optionsGrid.querySelectorAll(".opt-btn");
+        btns.forEach(b => (b.disabled = true));
+        if (btns[timeoutRes.correctIndex]) btns[timeoutRes.correctIndex].classList.add("correct");
+        AudioEngine.playSfx("miss");
+        speakCurrentCorrect(0.82);
+        shakeTime = 0.35;
+        spawnExplosion(W * 0.5, H * 0.68, "#F43F5E", 28);
+        showToast(timeoutRes.shielded ? "🛡️ 鐵板防線撐住衝擊！該感染者撤退重組" : "🧟 倒數歸零遭感染者突襲！已排入防爆疫苗波");
+        renderHud();
+        scheduleAdvance(timeoutRes.gameOver);
+      }
+    }
+
+    if (engine.state.status === "VICTORY") {
+      fwAccum += dt;
+      if (fwAccum > 0.55) {
+        fwAccum = 0;
+        spawnFirework();
+      }
+    }
+
+    c2d.save();
+    if (shakeTime > 0) {
+      shakeTime = Math.max(0, shakeTime - dt);
+      c2d.translate((Math.random() - 0.5) * 10, (Math.random() - 0.5) * 10);
+    }
+
+    trainScroll = (trainScroll + dt * 280) % 120;
+    const isTunnelDark = engine.state.status === "PLAYING" && engine.getCurrentStage().glitchRate >= 0.25;
+    const flicker = isTunnelDark ? (Math.sin(ts * 0.025) > 0.65 ? 0.16 : 0.05) : 0;
+
+    c2d.fillStyle = isTunnelDark ? "#0A060B" : "#070B14";
+    c2d.fillRect(0, 0, W, H);
+    if (flicker > 0) {
+      c2d.fillStyle = `rgba(244, 63, 94, ${flicker})`;
+      c2d.fillRect(0, 0, W, H);
+    }
+
+    // Train to Busan Perspective Corridor Walls & Speeding Tunnel Lights
+    const cx = W * 0.5;
+    const vpY = H * 0.18;
+    c2d.strokeStyle = isTunnelDark ? "rgba(244, 63, 94, 0.22)" : "rgba(56, 189, 248, 0.16)";
+    c2d.lineWidth = 1.5;
+    // Perspective aisle guide rails
+    c2d.beginPath();
+    c2d.moveTo(cx - W * 0.12, vpY); c2d.lineTo(cx - W * 0.48, H * 0.62);
+    c2d.moveTo(cx + W * 0.12, vpY); c2d.lineTo(cx + W * 0.48, H * 0.62);
+    c2d.moveTo(cx - W * 0.12, vpY); c2d.lineTo(cx + W * 0.12, vpY);
+    c2d.stroke();
+
+    // Moving overhead carriage ribs (creates visceral speeding-train motion)
+    for (let k = 0; k < 5; k++) {
+      const p = ((k * 0.2 + (trainScroll / 120) * 0.2) % 1);
+      const ribY = vpY + p * p * (H * 0.36);
+      const halfW = W * (0.12 + p * p * 0.34);
+      c2d.strokeStyle = isTunnelDark ? `rgba(244, 63, 94, ${0.08 + p * 0.22})` : `rgba(56, 189, 248, ${0.06 + p * 0.16})`;
+      c2d.beginPath();
+      c2d.moveTo(cx - halfW, ribY);
+      c2d.lineTo(cx + halfW, ribY);
+      c2d.stroke();
+    }
+
+    // Incoming Infected Horde & Acoustic Shockwave rushing down the aisle
+    if (engine.state.status === "PLAYING" && engine.state.currentQuestion) {
+      const stage = engine.getCurrentStage();
+      const progress = 1 - (engine.state.timeLeft / Math.max(0.01, engine.state.timeMax));
+      currentWaveY = H * (0.17 + progress * 0.25);
+      const pulseCol = engine.state.slowActive ? "#38BDF8" : (engine.state.currentQuestion.isVaccine ? "#F59E0B" : (engine.state.currentQuestion.isMovie ? "#A78BFA" : stage.accent));
+
+      // Draw sprinting infected silhouette cluster scaling up as they approach the bulkhead door!
+      const zScale = 0.65 + progress * 1.15;
+      const offsets = [-34 * zScale, 0, 34 * zScale];
+      offsets.forEach((ox, idx) => {
+        const bob = Math.abs(Math.sin(ts * (engine.state.slowActive ? 0.006 : 0.014) + idx * 1.7)) * 7 * zScale;
+        const zx = cx + ox;
+        const zy = currentWaveY - bob;
+        c2d.fillStyle = idx === 1 ? "rgba(244, 63, 94, 0.88)" : "rgba(244, 63, 94, 0.48)";
+        // Head
+        c2d.beginPath();
+        c2d.arc(zx, zy - 12 * zScale, 5.5 * zScale, 0, Math.PI * 2);
+        c2d.fill();
+        // Shoulders/torso
+        c2d.beginPath();
+        c2d.roundRect ? c2d.roundRect(zx - 7 * zScale, zy - 5 * zScale, 14 * zScale, 16 * zScale, 4) : c2d.rect(zx - 7 * zScale, zy - 5 * zScale, 14 * zScale, 16 * zScale);
+        c2d.fill();
+      });
+
+      // Live pitch-contour acoustic wave ribbon in front of the horde
+      c2d.strokeStyle = pulseCol;
+      c2d.lineWidth = 2.6;
+      c2d.beginPath();
+      const span = Math.min(340, W * (0.36 + progress * 0.36));
+      const startX = cx - span * 0.5;
+      for (let x = 0; x <= span; x += 6) {
+        const t = x / span;
+        const env = Math.sin(t * Math.PI);
+        const glitch = stage.glitchRate > 0 ? (Math.random() - 0.5) * 18 * stage.glitchRate : 0;
+        const y = currentWaveY + 14 + Math.sin(t * 18 + ts * 0.009) * 12 * env + glitch * env;
+        if (x === 0) c2d.moveTo(startX + x, y);
+        else c2d.lineTo(startX + x, y);
+      }
+      c2d.stroke();
+
+      // Active Steel Door Barricade (Echo Shield)
+      if (engine.state.echoShieldActive) {
+        c2d.strokeStyle = "rgba(16, 185, 129, 0.85)";
+        c2d.lineWidth = 4;
+        c2d.beginPath();
+        c2d.arc(cx, H * 0.50, Math.min(135, W * 0.32), Math.PI * 1.15, Math.PI * 1.85);
+        c2d.stroke();
+      }
+    }
+
+    // Draw Hunger Games Silver Parachute Sponsor Drops
+    for (let i = parachutes.length - 1; i >= 0; i--) {
+      const ch = parachutes[i];
+      ch.life -= dt;
+      ch.y += ch.vy * dt;
+      ch.sway += dt * 3.5;
+      if (ch.life <= 0) { parachutes.splice(i, 1); continue; }
+      const px = ch.x + Math.sin(ch.sway) * 18;
+      c2d.save();
+      c2d.globalAlpha = Math.min(1, ch.life);
+      c2d.strokeStyle = "#E2E8F0";
+      c2d.lineWidth = 1.5;
+      c2d.beginPath();
+      c2d.arc(px, ch.y, 18, Math.PI, 0);
+      c2d.stroke();
+      c2d.beginPath();
+      c2d.moveTo(px - 16, ch.y); c2d.lineTo(px, ch.y + 20);
+      c2d.moveTo(px + 16, ch.y); c2d.lineTo(px, ch.y + 20);
+      c2d.stroke();
+      c2d.fillStyle = "#38BDF8";
+      c2d.fillRect(px - 7, ch.y + 18, 14, 12);
+      c2d.restore();
+    }
+
+    for (let i = beams.length - 1; i >= 0; i--) {
+      const b = beams[i];
+      b.life -= dt;
+      if (b.life <= 0) { beams.splice(i, 1); continue; }
+      const alpha = b.life / b.maxLife;
+      c2d.strokeStyle = b.color;
+      c2d.globalAlpha = alpha;
+      c2d.lineWidth = 9 * alpha;
+      c2d.beginPath();
+      c2d.moveTo(b.x1, b.y1);
+      c2d.lineTo(b.x2, b.y2);
+      c2d.stroke();
+      c2d.globalAlpha = 1;
+    }
+
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.life -= dt;
+      if (p.life <= 0) { particles.splice(i, 1); continue; }
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vy += 120 * dt;
+      c2d.globalAlpha = Math.max(0, p.life / p.maxLife);
+      c2d.fillStyle = p.color;
+      c2d.beginPath();
+      c2d.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      c2d.fill();
+      c2d.globalAlpha = 1;
+    }
+
+    c2d.restore();
+    rafId = requestAnimationFrame(frame);
+  }
+
+  window.addEventListener("resize", resizeCanvas);
+  window.addEventListener("load", () => {
+    resizeCanvas();
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(frame);
+  });
+})();
+</script>
+</body>
+</html>
